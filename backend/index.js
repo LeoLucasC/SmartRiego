@@ -21,12 +21,15 @@ const pool = mysql.createPool({
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   try {
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username y password son requeridos' });
+    }
     const hashedPassword = await bcrypt.hash(password, 10);
     await pool.query('INSERT INTO users (username, password) VALUES (?, ?)', [username, hashedPassword]);
     res.status(201).json({ message: 'Usuario registrado' });
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') {
-      res.status(400).json({ error: 'Usuario ya existe' });
+      res.status(400).json({ error: 'El usuario ya existe' });
     } else {
       res.status(500).json({ error: 'Error en el servidor' });
     }
@@ -37,6 +40,9 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username y password son requeridos' });
+    }
     const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
     const user = rows[0];
     if (!user) return res.status(400).json({ error: 'Usuario no encontrado' });
@@ -55,4 +61,11 @@ app.post('/login', async (req, res) => {
 
 // Iniciar servidor
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+app.listen(PORT, async () => {
+  try {
+    await pool.query('SELECT 1'); // Prueba de conexión al iniciar
+    console.log(`Servidor corriendo en puerto ${PORT}`);
+  } catch (error) {
+    console.error('Error al conectar a MySQL al iniciar el servidor:', error.message);
+  }
+});
