@@ -101,11 +101,11 @@ app.get('/user', authenticateToken, async (req, res) => {
 
 // Ruta para recibir datos del NodeMCU
 app.post('/iot-data', authenticateToken, async (req, res) => {
-  const { humidity, pump_state, mode } = req.body;
+  const { humidity, pump_state, mode, coordinates } = req.body;
   try {
     await pool.query(
-      'INSERT INTO sensor_data (user_id, humidity, pump_state, mode) VALUES (?, ?, ?, ?)',
-      [req.user.id, humidity, pump_state, mode]
+      'INSERT INTO sensor_data (user_id, humidity, pump_state, mode, coordinates) VALUES (?, ?, ?, ?, ?)',
+      [req.user.id, humidity, pump_state, mode, coordinates ? JSON.stringify(coordinates) : null]
     );
     res.status(201).json({ message: 'Datos IoT recibidos' });
   } catch (error) {
@@ -117,24 +117,37 @@ app.post('/iot-data', authenticateToken, async (req, res) => {
 app.get('/iot-data/latest', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT humidity, pump_state, mode, timestamp FROM sensor_data WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1',
+      'SELECT humidity, pump_state, mode, timestamp, coordinates FROM sensor_data WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'No hay datos disponibles' });
-    res.json(rows[0]);
+    const data = rows[0];
+    data.coordinates = data.coordinates ? JSON.parse(data.coordinates) : null;
+    res.json(data);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener datos', details: error.message });
   }
 });
 
-// Ruta para obtener datos históricos (últimas 24 horas)
+// Ruta para obtener datos históricos (con filtro por fechas)
 app.get('/iot-data/history', authenticateToken, async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT humidity, pump_state, mode, timestamp FROM sensor_data WHERE user_id = ? AND timestamp >= NOW() - INTERVAL 24 HOUR ORDER BY timestamp ASC',
-      [req.user.id]
-    );
-    res.json(rows);
+    const { startDate, endDate } = req.query;
+    let query = 'SELECT humidity, pump_state, mode, timestamp, coordinates FROM sensor_data WHERE user_id = ?';
+    const params = [req.user.id];
+
+    if (startDate && endDate) {
+      query += ' AND timestamp BETWEEN ? AND ?';
+      params.push(startDate, endDate);
+    }
+
+    query += ' ORDER BY timestamp ASC LIMIT 1000';
+    const [rows] = await pool.query(query, params);
+    const data = rows.map(row => ({
+      ...row,
+      coordinates: row.coordinates ? JSON.parse(row.coordinates) : null,
+    }));
+    res.json(data);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener datos históricos', details: error.message });
   }

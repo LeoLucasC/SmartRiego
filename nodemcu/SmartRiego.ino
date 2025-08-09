@@ -5,6 +5,7 @@
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 char auth[] = "_QaziEUt72NEZrRwPkKUJqRcUoeHQ8__";
 char ssid[] = "Lucas";
@@ -54,17 +55,34 @@ BLYNK_WRITE(V3) {
 void enviarDatosIoT(int humidity, bool pump_state, bool mode) {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
-    http.begin(serverUrl);
+    WiFiClient client;
+    http.begin(client, serverUrl);
     http.addHeader("Content-Type", "application/json");
     http.addHeader("Authorization", "Bearer " + String(jwtToken));
+
+    DynamicJsonDocument doc(200);
+    doc["humidity"] = humidity;
+    doc["pump_state"] = pump_state;
+    doc["mode"] = mode;
     
-    String payload = "{\"humidity\":" + String(humidity) + ",\"pump_state\":" + String(pump_state ? 1 : 0) + ",\"mode\":" + String(mode ? 1 : 0) + "}";
+    // Coordenadas predefinidas para el área regada (rectángulo en Buenos Aires)
+    if (pump_state) {
+      JsonArray coordinates = doc.createNestedArray("coordinates");
+      coordinates.add(-34.6037); // lat1
+      coordinates.add(-58.3816); // lng1
+      coordinates.add(-34.5937); // lat2
+      coordinates.add(-58.3716); // lng2
+    }
+
+    String payload;
+    serializeJson(doc, payload);
     int httpCode = http.POST(payload);
-    
+
     if (httpCode > 0) {
-      debugPrint("Datos enviados al servidor. Código: " + String(httpCode));
+      debugPrint("Datos enviados: " + payload);
+      debugPrint("Código HTTP: " + String(httpCode));
     } else {
-      debugPrint("Error al enviar datos: " + String(http.errorToString(httpCode)));
+      debugPrint("Error al enviar datos: " + http.errorToString(httpCode));
     }
     http.end();
   } else {
