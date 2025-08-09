@@ -16,6 +16,17 @@ const theme = createTheme({
     fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
     h4: { fontWeight: 700, letterSpacing: 1 },
   },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        contained: {
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          '&:hover': { boxShadow: '0 6px 8px rgba(0, 0, 0, 0.15)', transform: 'translateY(-2px)' },
+          transition: 'all 0.3s ease',
+        },
+      },
+    },
+  },
 });
 
 function App() {
@@ -25,7 +36,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ minHeight: '100vh' }}>
+      <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
         {token ? (
           <Dashboard setToken={setToken} />
         ) : showRegister ? (

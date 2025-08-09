@@ -16,6 +16,7 @@ import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
+import * as LeafletDraw from 'leaflet-draw'; // Importar leaflet-draw explícitamente
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -63,7 +64,10 @@ function MapController({ onAreaSelected }) {
   const drawnItems = useRef(new L.FeatureGroup());
 
   useEffect(() => {
+    // Añadir la capa de dibujo al mapa
     map.addLayer(drawnItems.current);
+
+    // Configurar el control de dibujo
     const drawControl = new L.Control.Draw({
       draw: {
         polyline: false,
@@ -77,14 +81,17 @@ function MapController({ onAreaSelected }) {
     });
     map.addControl(drawControl);
 
-    map.on(L.Draw.Event.CREATED, (e) => {
+    // Manejar evento de creación de área
+    map.on('draw:created', (e) => {
       const layer = e.layer;
       drawnItems.current.addLayer(layer);
       const latlngs = layer.getLatLngs()[0];
       onAreaSelected(latlngs);
     });
 
+    // Limpiar al desmontar
     return () => {
+      map.off('draw:created');
       map.removeControl(drawControl);
       map.removeLayer(drawnItems.current);
     };
@@ -99,12 +106,14 @@ export default function Dashboard({ setToken }) {
   const [historyData, setHistoryData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [areaSelected, setAreaSelected] = useState(null);
+  const mapRef = useRef(null);
 
   // Obtener datos del usuario y IoT
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
+        if (!token) throw new Error('No token found');
         const config = { headers: { Authorization: `Bearer ${token}` } };
 
         // Obtener datos del usuario
@@ -133,14 +142,12 @@ export default function Dashboard({ setToken }) {
 
   // Manejar geolocalización
   const handleShowLocation = () => {
-    if (navigator.geolocation) {
+    if (navigator.geolocation && mapRef.current) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          const map = L.map('map').setView([latitude, longitude], 15);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-          }).addTo(map);
+          const map = mapRef.current;
+          map.setView([latitude, longitude], 15);
           L.marker([latitude, longitude]).addTo(map).bindPopup('Tu ubicación').openPopup();
         },
         (error) => {
@@ -149,7 +156,7 @@ export default function Dashboard({ setToken }) {
         }
       );
     } else {
-      alert('Geolocalización no soportada por tu navegador.');
+      alert('Geolocalización no soportada o mapa no inicializado.');
     }
   };
 
@@ -219,10 +226,10 @@ export default function Dashboard({ setToken }) {
                     Mapa de Ubicación
                   </Typography>
                   <MapContainer
-                    center={[-34.6037, -58.3816]} // Coordenadas por defecto (Buenos Aires)
+                    center={[-34.6037, -58.3816]} // Buenos Aires por defecto
                     zoom={13}
                     style={{ height: '400px', width: '100%' }}
-                    id="map"
+                    whenCreated={(map) => (mapRef.current = map)} // Guardar referencia al mapa
                   >
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
