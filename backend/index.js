@@ -1,165 +1,184 @@
 const express = require('express');
+const mysql = require('mysql2/promise');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const mysql = require('mysql2/promise');
 const cors = require('cors');
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs').promises;
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true }));
 
-// Conexión a MySQL
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'smartriego',
-});
+const dbConfig = {
+  host: 'localhost',
+  user: 'root',
+  password: '', // Reemplaza con tu contraseña de MySQL
+  database: 'smartriego'
+};
 
-// Middleware para verificar token
-const authenticateToken = async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Token requerido' });
+const SECRET_KEY = 'your-secret-key'; // Cambia por una clave segura
+
+// Middleware para verificar JWT
+const verifyToken = async (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (!token) {
+    console.error('No token provided');
+    return res.status(401).json({ message: 'No token provided' });
+  }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
+    const decoded = jwt.verify(token, SECRET_KEY);
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(403).json({ error: 'Token inválido' });
+    console.error('Token verification error:', error.message, error.stack);
+    return res.status(401).json({ message: 'Invalid token' });
   }
 };
 
-// Ruta de prueba para verificar conexión a MySQL
-app.get('/test-db', async (req, res) => {
-  try {
-    const [rows] = await pool.query('SELECT 1 + 1 AS result');
-    res.json({ message: 'Conexión a MySQL exitosa', result: rows[0].result });
-  } catch (error) {
-    res.status(500).json({ error: 'Error al conectar a MySQL', details: error.message });
-  }
-});
-
-// Ruta de registro
-app.post('/register', async (req, res) => {
-  const { username, password, email, fullName } = req.body;
-  try {
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username y password son requeridos' });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const [result] = await pool.query(
-      'INSERT INTO users (username, password, email, fullName) VALUES (?, ?, ?, ?)',
-      [username, hashedPassword, email || null, fullName || null]
-    );
-    const token = jwt.sign({ id: result.insertId, username }, process.env.JWT_SECRET || 'secreto', { expiresIn: '1h' });
-    res.status(201).json({ message: 'Usuario registrado', token });
-  } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
-      res.status(400).json({ error: 'El usuario o correo ya existe' });
-    } else {
-      res.status(500).json({ error: 'Error en el servidor', details: error.message });
-    }
-  }
-});
-
-// Ruta de login
+// Login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username y password son requeridos' });
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute('SELECT * FROM users WHERE username = ?', [username]);
+
+    if (rows.length === 0) {
+      await connection.end();
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
-    const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+
     const user = rows[0];
-    if (!user) return res.status(400).json({ error: 'Usuario no encontrado' });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      await connection.end();
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
 
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) return res.status(400).json({ error: 'Contraseña incorrecta' });
-
-    const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET || 'secreto', {
-      expiresIn: '1h',
-    });
+    const token = jwt.sign({ id: user.id, username: user.username }, SECRET_KEY, { expiresIn: '1h' });
+    await connection.end();
     res.json({ token });
   } catch (error) {
-    res.status(500).json({ error: 'Error en el servidor', details: error.message });
+    console.error('Login error:', error.message, error.stack);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// Ruta para obtener datos del usuario
-app.get('/user', authenticateToken, async (req, res) => {
+// Registro
+app.post('/register', async (req, res) => {
+  const { username, password } = req.body;
   try {
-    const [rows] = await pool.query('SELECT username, fullName FROM users WHERE id = ?', [req.user.id]);
-    if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const connection = await mysql.createConnection(dbConfig);
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await connection.execute('INSERT INTO users (username, password) VALUES (?, ?)', [username, hashedPassword]);
+    await connection.end();
+    res.status(201).json({ message: 'User registered successfully' });
+  } catch (error) {
+    console.error('Register error:', error.message, error.stack);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Obtener datos del usuario
+app.get('/user', verifyToken, async (req, res) => {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute('SELECT id, username FROM users WHERE id = ?', [req.user.id]);
+    await connection.end();
+    if (rows.length === 0) return res.status(404).json({ message: 'User not found' });
     res.json(rows[0]);
   } catch (error) {
-    res.status(500).json({ error: 'Error en el servidor', details: error.message });
+    console.error('User fetch error:', error.message, error.stack);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// Ruta para recibir datos del NodeMCU
-app.post('/iot-data', authenticateToken, async (req, res) => {
+// Guardar datos de IoT (sin autenticación)
+app.post('/iot-data', async (req, res) => {
   const { humidity, pump_state, mode, coordinates } = req.body;
+  console.log('Received IoT data:', req.body);
   try {
-    await pool.query(
-      'INSERT INTO sensor_data (user_id, humidity, pump_state, mode, coordinates) VALUES (?, ?, ?, ?, ?)',
-      [req.user.id, humidity, pump_state, mode, coordinates ? JSON.stringify(coordinates) : null]
+    const connection = await mysql.createConnection(dbConfig);
+    await connection.execute(
+      'INSERT INTO sensor_data (humidity, pump_state, mode, coordinates, timestamp) VALUES (?, ?, ?, ?, NOW())',
+      [humidity, pump_state, mode, coordinates ? JSON.stringify(coordinates) : null]
     );
-    res.status(201).json({ message: 'Datos IoT recibidos' });
+    await connection.end();
+    res.status(200).json({ message: 'Data saved' });
   } catch (error) {
-    res.status(500).json({ error: 'Error al guardar datos', details: error.message });
+    console.error('IoT data save error:', error.message, error.stack);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// Ruta para obtener datos en tiempo real (último dato)
-app.get('/iot-data/latest', authenticateToken, async (req, res) => {
+// Obtener últimos datos de IoT
+app.get('/iot-data/latest', verifyToken, async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT humidity, pump_state, mode, timestamp, coordinates FROM sensor_data WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1',
-      [req.user.id]
-    );
-    if (!rows[0]) return res.status(404).json({ error: 'No hay datos disponibles' });
-    const data = rows[0];
-    data.coordinates = data.coordinates ? JSON.parse(data.coordinates) : null;
-    res.json(data);
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute('SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT 1');
+    await connection.end();
+    if (rows.length === 0) return res.status(404).json({ message: 'No data found' });
+    res.json(rows[0]);
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener datos', details: error.message });
+    console.error('IoT latest data fetch error:', error.message, error.stack);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// Ruta para obtener datos históricos (con filtro por fechas)
-app.get('/iot-data/history', authenticateToken, async (req, res) => {
+// Obtener historial de datos de IoT
+app.get('/iot-data/history', verifyToken, async (req, res) => {
+  const { startDate, endDate } = req.query;
   try {
-    const { startDate, endDate } = req.query;
-    let query = 'SELECT humidity, pump_state, mode, timestamp, coordinates FROM sensor_data WHERE user_id = ?';
-    const params = [req.user.id];
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute(
+      'SELECT * FROM sensor_data WHERE timestamp BETWEEN ? AND ? ORDER BY timestamp DESC',
+      [startDate, endDate]
+    );
+    await connection.end();
+    res.json(rows);
+  } catch (error) {
+    console.error('IoT history fetch error:', error.message, error.stack);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
-    if (startDate && endDate) {
-      query += ' AND timestamp BETWEEN ? AND ?';
-      params.push(startDate, endDate);
+// Guardar imagen
+app.post('/capture-image', verifyToken, async (req, res) => {
+  const { image } = req.body;
+  console.log('Received image data:', { imageLength: image ? image.length : 0 }); // Log para depurar
+  try {
+    if (!image) {
+      console.error('No image provided in request');
+      return res.status(400).json({ message: 'No image provided' });
     }
-
-    query += ' ORDER BY timestamp ASC LIMIT 1000';
-    const [rows] = await pool.query(query, params);
-    const data = rows.map(row => ({
-      ...row,
-      coordinates: row.coordinates ? JSON.parse(row.coordinates) : null,
-    }));
-    res.json(data);
+    const connection = await mysql.createConnection(dbConfig);
+    const metadata = { capturedBy: 'user', format: 'jpeg' };
+    await connection.execute(
+      'INSERT INTO camera_data (image, metadata, timestamp) VALUES (?, ?, NOW())',
+      [image, JSON.stringify(metadata)]
+    );
+    await connection.end();
+    res.status(200).json({ message: 'Image saved' });
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener datos históricos', details: error.message });
+    console.error('Image save error:', error.message, error.stack);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// Iniciar servidor
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, async () => {
+// Obtener imágenes
+app.get('/images', verifyToken, async (req, res) => {
   try {
-    await pool.query('SELECT 1');
-    console.log(`Servidor corriendo en puerto ${PORT}`);
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute('SELECT * FROM camera_data ORDER BY timestamp DESC');
+    await connection.end();
+    res.json(rows);
   } catch (error) {
-    console.error('Error al conectar a MySQL al iniciar el servidor:', error.message);
+    console.error('Images fetch error:', error.message, error.stack);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

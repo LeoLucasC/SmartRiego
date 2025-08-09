@@ -8,10 +8,9 @@
 #include <ArduinoJson.h>
 
 char auth[] = "_QaziEUt72NEZrRwPkKUJqRcUoeHQ8__";
-char ssid[] = "Lucas";
-char pass[] = "123456789";
-const char* serverUrl = "http://192.168.1.100:5000/iot-data"; // Cambia a tu IP local
-const char* jwtToken = "TU_TOKEN_JWT"; // Obtén el token tras login
+char ssid[] = "Lucas"; // Ajusta a tu SSID de WiFi
+char pass[] = "123456789"; // Ajusta a tu contraseña de WiFi
+const char* serverUrl = "http://192.168.43.231:5000/iot-data"; // IP de tu computadora
 
 int sensorPin = A0;
 int relayPin = 5; // D1 = GPIO5
@@ -58,14 +57,12 @@ void enviarDatosIoT(int humidity, bool pump_state, bool mode) {
     WiFiClient client;
     http.begin(client, serverUrl);
     http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", "Bearer " + String(jwtToken));
 
     DynamicJsonDocument doc(200);
     doc["humidity"] = humidity;
     doc["pump_state"] = pump_state;
     doc["mode"] = mode;
     
-    // Coordenadas predefinidas para el área regada (rectángulo en Buenos Aires)
     if (pump_state) {
       JsonArray coordinates = doc.createNestedArray("coordinates");
       coordinates.add(-34.6037); // lat1
@@ -76,13 +73,14 @@ void enviarDatosIoT(int humidity, bool pump_state, bool mode) {
 
     String payload;
     serializeJson(doc, payload);
+    debugPrint("Enviando datos: " + payload);
+
     int httpCode = http.POST(payload);
 
-    if (httpCode > 0) {
-      debugPrint("Datos enviados: " + payload);
-      debugPrint("Código HTTP: " + String(httpCode));
+    if (httpCode == 200) {
+      debugPrint("Datos enviados correctamente. Respuesta: " + http.getString());
     } else {
-      debugPrint("Error al enviar datos: " + http.errorToString(httpCode));
+      debugPrint("Error al enviar datos: HTTP " + String(httpCode) + " - " + http.errorToString(httpCode));
     }
     http.end();
   } else {
@@ -150,7 +148,7 @@ void setup() {
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    debugPrint("Conectado a WiFi. Iniciando Blynk...");
+    debugPrint("Conectado a WiFi. IP: " + WiFi.localIP().toString());
     Blynk.config(auth);
     Blynk.connect();
   } else {
