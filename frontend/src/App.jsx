@@ -1,42 +1,40 @@
 import React, { useState } from 'react';
 import Login from './components/Login';
 import Register from './components/Register';
-import { Box, Button, Typography } from '@mui/material';
+import Dashboard from './components/Dashboard';
+import { Box, CssBaseline } from '@mui/material';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+
+const theme = createTheme({
+  palette: {
+    primary: { main: '#00796b', contrastText: '#ffffff' },
+    secondary: { main: '#00bcd4', contrastText: '#ffffff' },
+    info: { main: '#1976d2', contrastText: '#ffffff' },
+    background: { default: '#f5f5f5', paper: '#ffffff' },
+  },
+  typography: {
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    h4: { fontWeight: 700, letterSpacing: 1 },
+  },
+});
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [showRegister, setShowRegister] = useState(false);
 
-  if (token) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f5f5f5' }}>
-        <Box sx={{ backgroundColor: 'white', padding: '24px', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)', textAlign: 'center' }}>
-          <Typography variant="h4" sx={{ mb: 2 }}>Sistema de Riego IoT</Typography>
-          <Typography variant="body1" sx={{ mb: 2 }}>Bienvenido. Estás autenticado.</Typography>
-          <Button
-            onClick={() => {
-              localStorage.removeItem('token');
-              setToken(null);
-            }}
-            variant="contained"
-            color="error"
-            sx={{ padding: '10px 20px', borderRadius: '8px' }}
-          >
-            Cerrar Sesión
-          </Button>
-        </Box>
-      </Box>
-    );
-  }
-
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-      {showRegister ? (
-        <Register setToken={setToken} setShowRegister={setShowRegister} />
-      ) : (
-        <Login setToken={setToken} setShowRegister={setShowRegister} />
-      )}
-    </Box>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ minHeight: '100vh' }}>
+        {token ? (
+          <Dashboard setToken={setToken} />
+        ) : showRegister ? (
+          <Register setToken={setToken} setShowRegister={setShowRegister} />
+        ) : (
+          <Login setToken={setToken} setShowRegister={setShowRegister} />
+        )}
+      </Box>
+    </ThemeProvider>
   );
 }
 
