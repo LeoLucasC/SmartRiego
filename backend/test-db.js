@@ -3,18 +3,23 @@ require('dotenv').config();
 
 async function testConnection() {
   try {
-    const pool = await mysql.createPool({
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'riego_iot',
-    });
+  // Configuración CORRECTA
+  const pool = mysql.createPool({
+    host: process.env.DB_HOST || 'db-iot.cx84uymuu7u1.us-east-2.rds.amazonaws.com',
+    user: process.env.DB_USER || 'admin',
+    password: process.env.DB_PASSWORD || 'lucas2201',
+    database: process.env.DB_NAME || 'dbiot', // ← NOMBRE DE LA BD QUE CREASTE
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+  });
 
-    const [rows] = await pool.query('SELECT 1 + 1 AS result');
-    console.log('Conexión exitosa a MySQL. Resultado de prueba:', rows[0].result);
-    await pool.end();
+  // You can add a test query here if needed
+  const [rows] = await pool.query('SELECT 1');
+  console.log('Connection successful:', rows);
+  await pool.end();
   } catch (error) {
-    console.error('Error al conectar a MySQL:', error.message);
+    console.error('Connection failed:', error);
   }
 }
 

@@ -21,27 +21,32 @@ import androidLogo from '../resource/androide.png';
 const theme = createTheme({
   palette: {
     primary: { 
-      main: '#00796b',
-      contrastText: '#ffffff'
+      main: '#ffeb3b',  // Amarillo vibrante
+      light: '#fff176', // Amarillo claro
+      dark: '#fbc02d',  // Amarillo oscuro
+      contrastText: '#212121', // Texto oscuro para buen contraste
     },
     secondary: { 
-      main: '#00bcd4',
-      contrastText: '#ffffff'
-    },
-    info: { 
-      main: '#1976d2',
-      contrastText: '#ffffff'
+      main: '#f44336',  // Rojo vibrante
+      light: '#ef5350', // Rojo claro
+      dark: '#d32f2f',  // Rojo oscuro
+      contrastText: '#ffffff', // Texto blanco para buen contraste
     },
     background: { 
-      default: '#f5f5f5',
-      paper: '#ffffff'
+      default: '#f5f5f5', // Fondo gris claro
+      paper: '#ffffff',   // Fondo blanco para elementos
+    },
+    text: {
+      primary: '#212121', // Texto principal oscuro
+      secondary: '#757575', // Texto secundario
     },
   },
   typography: { 
     fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
     h4: {
       fontWeight: 700,
-      letterSpacing: 1
+      letterSpacing: 1,
+      color: '#212121', // Color oscuro para buen contraste
     }
   },
   components: {
@@ -54,6 +59,20 @@ const theme = createTheme({
             transform: 'translateY(-2px)'
           },
           transition: 'all 0.3s ease'
+        },
+        containedPrimary: {
+          backgroundColor: '#ffeb3b',
+          color: '#212121',
+          '&:hover': {
+            backgroundColor: '#fbc02d',
+          }
+        },
+        containedSecondary: {
+          backgroundColor: '#f44336',
+          color: '#ffffff',
+          '&:hover': {
+            backgroundColor: '#d32f2f',
+          }
         }
       }
     },
@@ -69,10 +88,28 @@ const theme = createTheme({
               borderColor: '#bdbdbd',
             },
             '&.Mui-focused fieldset': {
-              borderColor: '#00796b',
-              boxShadow: '0 0 0 3px rgba(0, 121, 107, 0.2)'
+              borderColor: '#ffeb3b', // Borde amarillo al enfocar
+              boxShadow: '0 0 0 3px rgba(255, 235, 59, 0.2)'
             },
+          },
+          '& .MuiInputLabel-root': {
+            color: '#757575',
+          },
+          '& .MuiInputLabel-root.Mui-focused': {
+            color: '#ffeb3b', // Etiqueta amarilla al enfocar
           }
+        }
+      }
+    },
+    MuiAlert: {
+      styleOverrides: {
+        standardSuccess: {
+          backgroundColor: '#4caf50', // Verde para éxito (se mantiene)
+          color: '#ffffff',
+        },
+        standardError: {
+          backgroundColor: '#f44336', // Rojo para errores
+          color: '#ffffff',
         }
       }
     }
@@ -91,7 +128,7 @@ export default function Login({ setToken, setShowRegister }) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const { data } = await axios.post('http://localhost:5000/login', {
+      const { data } = await axios.post('http://192.168.18.31:5000/login', {
         username,
         password,
       });
@@ -184,7 +221,7 @@ export default function Login({ setToken, setShowRegister }) {
                   left: 0,
                   width: '100%',
                   height: '100%',
-                  background: 'linear-gradient(to bottom, rgba(0,121,107,0.3), rgba(0,188,212,0.3))'
+                  background: 'linear-gradient(to bottom, rgba(255, 235, 59, 0.3), rgba(244, 67, 54, 0.3))' // Degradado amarillo-rojo
                 }
               }}
             >
@@ -207,7 +244,8 @@ export default function Login({ setToken, setShowRegister }) {
                   padding: '0 30px',
                   color: 'white',
                   textAlign: 'center',
-                  zIndex: 2
+                  zIndex: 2,
+                  textShadow: '0 2px 4px rgba(0, 0, 0, 0.5)'
                 }}
               >
                 <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
@@ -222,7 +260,7 @@ export default function Login({ setToken, setShowRegister }) {
             <Box
               sx={{
                 width: { xs: '100%', md: '60%' },
-                backgroundColor: alpha(theme.palette.background.paper, 0.95),
+                backgroundColor: alpha('#ffffff', 0.95), // Fondo blanco semitransparente
                 padding: { xs: '30px', md: '40px' },
                 display: 'flex',
                 flexDirection: 'column',
@@ -247,7 +285,7 @@ export default function Login({ setToken, setShowRegister }) {
                 align="center" 
                 sx={{ 
                   mb: 3,
-                  color: 'primary.main',
+                   color: 'secondary.main', // Cambiado a rojo
                   fontSize: '1.6rem'
                 }}
               >
@@ -255,7 +293,8 @@ export default function Login({ setToken, setShowRegister }) {
                   sx={{ 
                     verticalAlign: 'middle', 
                     mr: 2,
-                    fontSize: '1.6rem'
+                    fontSize: '1.6rem',
+                    color: 'primary.main'
                   }} 
                 />
                 INICIAR SESIÓN
@@ -293,7 +332,12 @@ export default function Login({ setToken, setShowRegister }) {
                     py: 1.5,
                     mb: 2,
                     borderRadius: '10px',
-                    fontSize: '1rem'
+                    fontSize: '1rem',
+                    backgroundColor: 'primary.main',
+                    color: 'primary.contrastText',
+                    '&:hover': {
+                      backgroundColor: 'primary.dark'
+                    }
                   }}
                 >
                   {isLoading ? (
@@ -320,7 +364,8 @@ export default function Login({ setToken, setShowRegister }) {
                       textTransform: 'none',
                       textDecoration: 'none',
                       '&:hover': {
-                        textDecoration: 'underline'
+                        textDecoration: 'underline',
+                        backgroundColor: 'transparent'
                       }
                     }}
                   >
@@ -333,22 +378,6 @@ export default function Login({ setToken, setShowRegister }) {
                   flexDirection: 'column',
                   alignItems: 'center'
                 }}>
-                  <Typography variant="caption" sx={{ mb: 1, color: 'text.secondary' }}>
-                    Disponible también en
-                  </Typography>
-                  <Box
-                    component="img"
-                    src={androidLogo}
-                    alt="Disponible en Android"
-                    sx={{
-                      width: '90px',
-                      opacity: 0.8,
-                      '&:hover': {
-                        opacity: 1
-                      },
-                      transition: 'opacity 0.3s'
-                    }}
-                  />
                 </Box>
               </Box>
             </Box>

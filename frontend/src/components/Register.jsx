@@ -21,27 +21,32 @@ import androidLogo from '../resource/androide.png';
 const theme = createTheme({
   palette: {
     primary: { 
-      main: '#00796b',
-      contrastText: '#ffffff'
+      main: '#ffeb3b',  // Amarillo vibrante
+      light: '#fff176', // Amarillo claro
+      dark: '#fbc02d',  // Amarillo oscuro
+      contrastText: '#212121', // Texto oscuro para buen contraste
     },
     secondary: { 
-      main: '#00bcd4',
-      contrastText: '#ffffff'
-    },
-    info: { 
-      main: '#1976d2',
-      contrastText: '#ffffff'
+      main: '#f44336',  // Rojo vibrante
+      light: '#ef5350', // Rojo claro
+      dark: '#d32f2f',  // Rojo oscuro
+      contrastText: '#ffffff', // Texto blanco para buen contraste
     },
     background: { 
-      default: '#f5f5f5',
-      paper: '#ffffff'
+      default: '#f5f5f5', // Fondo gris claro
+      paper: '#ffffff',   // Fondo blanco para elementos
+    },
+    text: {
+      primary: '#212121', // Texto principal oscuro
+      secondary: '#757575', // Texto secundario
     },
   },
   typography: { 
     fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
     h4: {
       fontWeight: 700,
-      letterSpacing: 1
+      letterSpacing: 1,
+      color: '#212121', // Color oscuro para buen contraste
     }
   },
   components: {
@@ -54,6 +59,20 @@ const theme = createTheme({
             transform: 'translateY(-2px)'
           },
           transition: 'all 0.3s ease'
+        },
+        containedPrimary: {
+          backgroundColor: '#ffeb3b',
+          color: '#212121',
+          '&:hover': {
+            backgroundColor: '#fbc02d',
+          }
+        },
+        containedSecondary: {
+          backgroundColor: '#f44336',
+          color: '#ffffff',
+          '&:hover': {
+            backgroundColor: '#d32f2f',
+          }
         }
       }
     },
@@ -69,10 +88,28 @@ const theme = createTheme({
               borderColor: '#bdbdbd',
             },
             '&.Mui-focused fieldset': {
-              borderColor: '#00796b',
-              boxShadow: '0 0 0 3px rgba(0, 121, 107, 0.2)'
+              borderColor: '#ffeb3b', // Borde amarillo al enfocar
+              boxShadow: '0 0 0 3px rgba(255, 235, 59, 0.2)'
             },
+          },
+          '& .MuiInputLabel-root': {
+            color: '#757575',
+          },
+          '& .MuiInputLabel-root.Mui-focused': {
+            color: '#ffeb3b', // Etiqueta amarilla al enfocar
           }
+        }
+      }
+    },
+    MuiAlert: {
+      styleOverrides: {
+        standardSuccess: {
+          backgroundColor: '#4caf50', // Verde para éxito (se mantiene)
+          color: '#ffffff',
+        },
+        standardError: {
+          backgroundColor: '#f44336', // Rojo para errores
+          color: '#ffffff',
         }
       }
     }
@@ -195,7 +232,7 @@ export default function Register({ setToken, setShowRegister }) {
                   left: 0,
                   width: '100%',
                   height: '100%',
-                  background: 'linear-gradient(to bottom, rgba(0,121,107,0.3), rgba(0,188,212,0.3))'
+                  background: 'linear-gradient(to bottom, rgba(255, 235, 59, 0.3), rgba(244, 67, 54, 0.3))' // Degradado amarillo-rojo
                 }
               }}
             >
@@ -218,7 +255,8 @@ export default function Register({ setToken, setShowRegister }) {
                   padding: '0 30px',
                   color: 'white',
                   textAlign: 'center',
-                  zIndex: 2
+                  zIndex: 2,
+                  textShadow: '0 2px 4px rgba(0, 0, 0, 0.5)'
                 }}
               >
                 <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
@@ -233,7 +271,7 @@ export default function Register({ setToken, setShowRegister }) {
             <Box
               sx={{
                 width: { xs: '100%', md: '60%' },
-                backgroundColor: alpha(theme.palette.background.paper, 0.95),
+                backgroundColor: alpha('#ffffff', 0.95), // Fondo blanco semitransparente
                 padding: { xs: '30px', md: '40px' },
                 display: 'flex',
                 flexDirection: 'column',
@@ -259,7 +297,7 @@ export default function Register({ setToken, setShowRegister }) {
                 align="center" 
                 sx={{ 
                   mb: 2, // Reducido
-                  color: 'primary.main',
+                  color: 'secondary.main', // Cambiado a rojo
                   fontSize: '1.4rem' // Más pequeño
                 }}
               >
@@ -267,7 +305,8 @@ export default function Register({ setToken, setShowRegister }) {
                   sx={{ 
                     verticalAlign: 'middle', 
                     mr: 1, // Reducido
-                    fontSize: '1.4rem' // Más pequeño
+                    fontSize: '1.4rem', // Más pequeño
+                    color: 'primary.main' // Icono en amarillo
                   }} 
                 />
                 REGISTRARSE
@@ -325,7 +364,12 @@ export default function Register({ setToken, setShowRegister }) {
                     mt: 2,
                     mb: 1, // Reducido
                     borderRadius: '10px',
-                    fontSize: '0.9rem' // Texto más pequeño
+                    fontSize: '0.9rem', // Texto más pequeño
+                    backgroundColor: 'primary.main',
+                    color: 'primary.contrastText',
+                    '&:hover': {
+                      backgroundColor: 'primary.dark'
+                    }
                   }}
                 >
                   {isLoading ? (
@@ -352,7 +396,11 @@ export default function Register({ setToken, setShowRegister }) {
                       textTransform: 'none',
                       fontSize: '0.875rem', // Texto más pequeño
                       p: 0, // Sin padding
-                      minWidth: 'auto' // Ancho mínimo automático
+                      minWidth: 'auto', // Ancho mínimo automático
+                      '&:hover': {
+                        textDecoration: 'underline',
+                        backgroundColor: 'transparent'
+                      }
                     }}
                   >
                     Inicia sesión aquí
@@ -365,26 +413,6 @@ export default function Register({ setToken, setShowRegister }) {
                   alignItems: 'center',
                   mt: 1 // Reducido
                 }}>
-                  <Typography variant="caption" sx={{ 
-                    mb: 0.5, // Reducido
-                    color: 'text.secondary',
-                    fontSize: '0.75rem' // Más pequeño
-                  }}>
-                    Disponible también en
-                  </Typography>
-                  <Box
-                    component="img"
-                    src={androidLogo}
-                    alt="Disponible en Android"
-                    sx={{
-                      width: '70px', // Más pequeño
-                      opacity: 0.8,
-                      '&:hover': {
-                        opacity: 1
-                      },
-                      transition: 'opacity 0.3s'
-                    }}
-                  />
                 </Box>
               </Box>
             </Box>
