@@ -1,22 +1,27 @@
-🌡️ Sistema IoT de Monitoreo Ambiental para Qhatu Marca SAC
+🌡️ Sistema IoT de Monitoreo de Temperatura y Humedad para Qhatu Marca SAC
 
-Bienvenido al Sistema IoT de Monitoreo Ambiental desarrollado para Qhatu Marca SAC, una minimarket que ofrece productos importados, abarrotes y más. Este sistema permite monitorear en tiempo real las condiciones de temperatura y humedad en el área de almacenamiento, garantizando la calidad y conservación de los productos, especialmente alimentos perecederos e importados sensibles a las condiciones ambientales. Utiliza un Arduino ESP32 para recolectar datos, un backend en Node.js para procesarlos, AWS Aurora MySQL para almacenamiento escalable en la nube, y un frontend en React para visualización intuitiva.
+Bienvenido al Sistema IoT de Monitoreo de Temperatura y Humedad desarrollado para Qhatu Marca SAC, una minimarket que ofrece productos importados, abarrotes y otros bienes esenciales. Este sistema monitorea en tiempo real las condiciones de temperatura y humedad en el área de almacenamiento para garantizar la calidad y conservación de los productos, especialmente alimentos perecederos e importados sensibles al ambiente. Utiliza un Arduino ESP32 (simulado en Wokwi y PlatformIO) para recolectar datos, un backend en Node.js para procesarlos, AWS Aurora MySQL para almacenamiento escalable en la nube, y un frontend en React para visualización intuitiva.
 📜 Descripción
-Qhatu Marca SAC es una minimarket que comercializa productos importados, abarrotes y otros bienes esenciales. Para asegurar la calidad de su inventario, este proyecto implementa un sistema IoT con las siguientes características:
+Qhatu Marca SAC es una minimarket dedicada a la venta de productos importados y abarrotes. Este proyecto implementa un sistema IoT para monitorear las condiciones ambientales en el almacén, asegurando que los productos se mantengan en condiciones óptimas. Las características principales son:
 
-Monitoreo en tiempo real: Recolecta datos de temperatura y humedad desde un sensor DHT22 conectado a un Arduino ESP32, enviándolos cada 5 segundos al backend.
-Alertas automáticas: Genera notificaciones si la temperatura supera los 70°C o la humedad los 70%, alertando al personal sobre condiciones que podrían afectar productos perecederos.
-Gestión de turnos: Asocia las lecturas a empleados según turnos activos, permitiendo un seguimiento claro de quién está a cargo durante cada período.
+Monitoreo en tiempo real: Un Arduino ESP32 con sensor DHT22 (simulado en Wokwi y compilado con PlatformIO) mide temperatura y humedad, enviando datos al backend cada 5 segundos.
+Alertas automáticas: Notifica al personal si la temperatura supera los 70°C o la humedad los 70%, protegiendo productos perecederos.
+Gestión de turnos: Asocia las lecturas a empleados según turnos activos, facilitando el seguimiento de responsabilidades.
 Dashboard web: Un frontend en React muestra datos en tiempo real, historial de lecturas y alertas, accesible para administradores y colaboradores.
-Despliegue en la nube: Utiliza AWS Aurora MySQL para una base de datos relacional escalable, confiable y optimizada para la nube, ideal para manejar los datos de la minimarket.
+Almacenamiento en la nube: Usa AWS Aurora MySQL para una base de datos relacional escalable, confiable y optimizada para entornos en la nube.
 
-Finalidad: Garantizar condiciones óptimas de almacenamiento en Qhatu Marca SAC, proteger la calidad de los productos, mejorar la eficiencia operativa mediante alertas y seguimiento, y proporcionar una solución tecnológica moderna y escalable para el negocio.
+Finalidad: Mantener la calidad de los productos en Qhatu Marca SAC mediante el monitoreo continuo de temperatura y humedad, con alertas inmediatas y un sistema de gestión eficiente para el personal.
 🛠️ Tecnologías
 
 Hardware:
-Arduino ESP32
+Arduino ESP32 (simulado en Wokwi y PlatformIO)
 Sensor DHT22 (temperatura y humedad)
-Pantalla LCD I2C (16x2) para visualización local en la minimarket
+Pantalla LCD I2C (16x2) para visualización local
+
+
+Simuladores:
+Wokwi: Entorno de simulación para probar el comportamiento del Arduino ESP32.
+PlatformIO: IDE para compilar y gestionar el código del Arduino.
 
 
 Backend:
@@ -35,13 +40,12 @@ Tailwind CSS (opcional, según tu implementación)
 
 
 Infraestructura:
-AWS EC2 (para el backend, asumido con IP 192.168.0.237)
+AWS EC2 (para el backend, IP: 192.168.0.237 en simulación o producción)
 AWS Aurora MySQL (para almacenamiento de datos)
 
 
 Protocolo:
 HTTP para comunicación Arduino-backend
-Opcional: Soporte futuro para MQTT
 
 
 
@@ -69,7 +73,7 @@ qhatu-marca-iot/
 └── README.md
 
 🗄️ Estructura de la base de datos (AWS Aurora MySQL)
-La base de datos dbiot, alojada en AWS Aurora MySQL, está diseñada para soportar el monitoreo ambiental y la gestión de turnos en Qhatu Marca SAC. Las tablas son:
+La base de datos dbiot, alojada en AWS Aurora MySQL, está diseñada para soportar el monitoreo de temperatura y humedad en Qhatu Marca SAC. Las tablas son:
 
 users: Almacena empleados y administradores (username, password hasheada, role, group_id).
 groups: Define grupos de sensores (group_id, name, por ejemplo, "Almacén Qhatu Marca").
@@ -101,11 +105,12 @@ SELECT NOW();
 🚀 Instalación y configuración
 Requisitos previos
 
-Hardware: Arduino ESP32, sensor DHT22, pantalla LCD I2C.
+Hardware: Arduino ESP32, sensor DHT22, pantalla LCD I2C (simulados en Wokwi/PlatformIO durante desarrollo).
 Software:
 Node.js 18.x
 npm para backend y frontend
-Arduino IDE
+Wokwi (simulador online para Arduino)
+PlatformIO (IDE para compilar código Arduino)
 AWS CLI o MySQL Workbench para Aurora MySQL
 
 
@@ -151,14 +156,14 @@ SELECT * FROM alerts;
 
 Arduino
 
-Abre arduino/main.cpp en Arduino IDE.
+Abre arduino/main.cpp en PlatformIO o importa el proyecto desde Wokwi.
 Configura la red WiFi y la URL del servidor:const char* ssid = "tu_red_wifi";
 const char* password = "tu_contraseña_wifi";
 const char* serverName = "http://192.168.0.237:5000/iot-data";
 const int groupId = 1;
 
 
-Carga el código al Arduino ESP32.
+Compila y carga el código al Arduino ESP32 (o simula en Wokwi).
 Abre el Monitor Serial (115200 baudios) para verificar:
 Deberías ver: Respuesta del servidor (Código 200): {"message":"Datos guardados exitosamente"}.
 
@@ -196,7 +201,7 @@ El sistema está optimizado para Qhatu Marca SAC usando AWS:
 AWS Aurora MySQL:
 Clúster Aurora con compatibilidad MySQL 8.x, alojado en una VPC.
 Configura grupos de seguridad para permitir conexiones desde la instancia EC2.
-Usa réplicas de lectura para mayor rendimiento si la minimarket crece.
+Soporta escalado automático para futuras expansiones de la minimarket.
 
 
 AWS EC2:
@@ -205,18 +210,17 @@ Abre el puerto 5000 en el grupo de seguridad.
 Opcional: Usa un balanceador de carga para alta disponibilidad.
 
 
-Escalabilidad:
-Aurora MySQL soporta escalado automático para manejar más sensores o tiendas.
-El backend puede escalarse con más instancias EC2.
+Simulación:
+Durante el desarrollo, el Arduino se simula en Wokwi y se compila con PlatformIO, permitiendo pruebas sin hardware físico.
 
 
 
 🔧 Depuración
 Si encuentras problemas:
 
-Arduino:
+Arduino (Wokwi/PlatformIO):
 Revisa el Monitor Serial para errores (por ejemplo, código HTTP -1 o 400).
-Verifica la conectividad: ping 192.168.0.237.
+En Wokwi, verifica la configuración de red simulada: ping 192.168.0.237.
 
 
 Backend:
@@ -236,15 +240,8 @@ SELECT * FROM alerts WHERE group_id = 1 ORDER BY timestamp DESC LIMIT 10;
 
 
 
-📚 Futuras mejoras
-
-
-Múltiples sensores: Soportar varios sensores para monitorear diferentes áreas de la minimarket.
-App móvil: Desarrollar una app para que los empleados accedan al dashboard desde sus teléfonos.
-
 🤝 Contribuciones
-
-LEO ROSARIO LUCAS CAQUI
+¡Ayúdanos a mejorar el sistema para Qhatu Marca SAC!:
 
 Haz un fork del repositorio.
 Crea una rama: git checkout -b mi-funcionalidad.
@@ -253,6 +250,6 @@ Haz push: git push origin mi-funcionalidad.
 Abre un Pull Request.
 
 📧 Contacto
+Para dudas o sugerencias, contacta al equipo en [Softlyer@gmail.com].
 
-
-Hecho con 💪 para Qhatu Marca SAC por [LEO ROSARIO LUCAS CAQUI]
+Hecho con 💪 para Qhatu Marca SAC por [Leo Rosario Lucas CAqui]
