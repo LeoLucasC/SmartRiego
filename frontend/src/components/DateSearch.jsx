@@ -119,8 +119,9 @@ const theme = createTheme({
 });
 
 export default function DateSearch({ setToken }) {
-  const [startDate, setStartDate] = useState(dayjs().subtract(1, 'day'));
-  const [endDate, setEndDate] = useState(dayjs());
+  // Inicializar fechas: startDate al inicio del día anterior, endDate al final del día actual
+  const [startDate, setStartDate] = useState(dayjs().subtract(1, 'day').startOf('day'));
+  const [endDate, setEndDate] = useState(dayjs().endOf('day'));
   const [iotData, setIotData] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -128,6 +129,7 @@ export default function DateSearch({ setToken }) {
   const [user, setUser] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const serverUrl = 'http://192.168.0.237:5000';
 
   const fetchData = async () => {
     try {
@@ -139,7 +141,12 @@ export default function DateSearch({ setToken }) {
         return;
       }
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const serverUrl = 'http://192.168.0.237:5000'; // Actualizado a la URL correcta
+
+      // Log para depurar las fechas enviadas
+      console.log('Buscando datos con:', {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      });
 
       const [userResponse, iotResponse, alertsResponse] = await Promise.all([
         axios.get(`${serverUrl}/user`, config).catch(err => {
@@ -149,8 +156,9 @@ export default function DateSearch({ setToken }) {
         axios.get(`${serverUrl}/iot-data/history`, {
           ...config,
           params: {
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
+            startDate: startDate.startOf('day').toISOString(),
+            endDate: endDate.endOf('day').toISOString(),
+            limit: 100,
           },
         }).catch(err => {
           console.error('Error al obtener datos IoT:', err.response?.data || err.message);
@@ -164,12 +172,13 @@ export default function DateSearch({ setToken }) {
 
       if (userResponse.data && typeof userResponse.data === 'object' && userResponse.data.username) {
         setUser(userResponse.data);
-        console.log('DateSearch - User response:', userResponse.data); // Log para depuración
+        console.log('DateSearch - User response:', userResponse.data);
       } else {
         setUser({ username: 'Usuario', role: 'collaborator' });
         setError('No se pudieron cargar los datos del usuario. Verifica tu sesión.');
       }
 
+      console.log('Datos IoT recibidos:', iotResponse.data);
       setIotData(iotResponse.data || []);
       setAlerts(alertsResponse.data.alerts || []);
     } catch (error) {
@@ -205,22 +214,26 @@ export default function DateSearch({ setToken }) {
     setDrawerOpen(!drawerOpen);
   };
 
+  const handleSelectView = (view) => {
+    setDrawerOpen(false);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: 'background.default' }}>
         <Sidebar
           open={isMobile ? drawerOpen : true}
           onClose={handleDrawerToggle}
-          onSelectView={() => {}}
+          onSelectView={handleSelectView}
           userRole={user?.role || 'collaborator'}
         />
         <Box sx={{ flexGrow: 1, p: isMobile ? 2 : 3 }}>
           <Header
             username={user?.username || 'Usuario'}
-            role={user?.role || 'collaborator'} // Agregar prop role
+            role={user?.role || 'collaborator'}
             onLogout={handleLogout}
             isMobile={isMobile}
-            alerts={alerts} // Pasar alertas al Header
+            alerts={alerts}
           />
           {error && (
             <Fade in={!!error}>
@@ -243,7 +256,7 @@ export default function DateSearch({ setToken }) {
                     <DatePicker
                       label="Fecha de Inicio"
                       value={startDate}
-                      onChange={(newValue) => setStartDate(newValue)}
+                      onChange={(newValue) => setStartDate(newValue ? newValue.startOf('day') : null)}
                       renderInput={(params) => <TextField {...params} fullWidth />}
                     />
                   </LocalizationProvider>
@@ -253,7 +266,7 @@ export default function DateSearch({ setToken }) {
                     <DatePicker
                       label="Fecha de Fin"
                       value={endDate}
-                      onChange={(newValue) => setEndDate(newValue)}
+                      onChange={(newValue) => setEndDate(newValue ? newValue.endOf('day') : null)}
                       renderInput={(params) => <TextField {...params} fullWidth />}
                     />
                   </LocalizationProvider>

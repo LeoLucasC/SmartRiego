@@ -171,78 +171,68 @@ app.get('/iot-data/latest', verifyToken, async (req, res) => {
     }
 });
 
-// Endpoint para obtener historial de datos (protegido por JWT)
+
+// VERSIÓN ALTERNATIVA - Endpoint sin prepared statements para diagnosticar
 app.get('/iot-data/history', verifyToken, async (req, res) => {
-    const groupId = req.user.group_id;
-    const userId = req.user.id;
-    const isAdmin = req.user.role === 'admin';
-    let { startDate, endDate, limit = 100, offset = 0 } = req.query;
+  try {
+    const { startDate, endDate, limit = 100 } = req.query;
+    const group_id = req.user?.group_id;
 
-    if (!groupId) {
-        return res.status(400).json({ error: 'group_id no disponible en el token' });
+    // Validar parámetros
+    if (!startDate || !endDate) {
+      console.error('Faltan parámetros startDate o endDate');
+      return res.status(400).json({ error: 'Se requieren startDate y endDate' });
     }
 
-    const dateRegex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z)?$/;
-    if (startDate && !dateRegex.test(startDate)) {
-        return res.status(400).json({ error: 'Formato de fecha de inicio inválido (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss.sssZ)' });
-    }
-    if (endDate && !dateRegex.test(endDate)) {
-        return res.status(400).json({ error: 'Formato de fecha de fin inválido (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss.sssZ)' });
-    }
-
-    const formatDateForMySQL = (dateStr) => {
-        if (!dateStr) return null;
-        const date = new Date(dateStr);
-        if (isNaN(date)) {
-            console.error(`Fecha inválida: ${dateStr}`);
-            return null;
-        }
-        return date.toISOString().slice(0, 19).replace('T', ' ');
-    };
-
-    const start = startDate ? formatDateForMySQL(startDate.includes('T') ? startDate : `${startDate}T00:00:00.000Z`) : '1970-01-01 00:00:00';
-    const end = endDate ? formatDateForMySQL(endDate.includes('T') ? endDate : `${endDate}T23:59:59.999Z`) : '9999-12-31 23:59:59';
-
-    if (!start || !end) {
-        return res.status(400).json({ error: 'Fechas de inicio o fin inválidas' });
+    // Validar formato de fechas
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      console.error('Fechas inválidas:', { startDate, endDate });
+      return res.status(400).json({ error: 'Formato de fechas inválido' });
     }
 
-    const limitNum = parseInt(limit, 10);
-    const offsetNum = parseInt(offset, 10);
-    if (isNaN(limitNum) || limitNum < 0) {
-        return res.status(400).json({ error: 'El parámetro limit debe ser un número no negativo' });
-    }
-    if (isNaN(offsetNum) || offsetNum < 0) {
-        return res.status(400).json({ error: 'El parámetro offset debe ser un número no negativo' });
+    if (end < start) {
+      console.error('endDate es anterior a startDate:', { startDate, endDate });
+      return res.status(400).json({ error: 'La fecha de fin debe ser posterior a la fecha de inicio' });
     }
 
-    try {
-        const connection = await pool.getConnection();
-        let query = `
-            SELECT id, group_id, timestamp, humidity, temperature, user_id 
-            FROM sensor_readings 
-            WHERE group_id = ? AND timestamp BETWEEN ? AND ?
-        `;
-        let params = [groupId, start, end];
+    // Convertir fechas a strings ISO para MySQL
+    const startISO = start.toISOString().slice(0, 19).replace('T', ' ');
+    const endISO = end.toISOString().slice(0, 19).replace('T', ' ');
 
-        if (!isAdmin) {
-            query += ' AND user_id = ?';
-            params.push(userId);
-        }
-
-        query += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
-        params.push(limitNum, offsetNum);
-
-        console.log('Ejecutando consulta:', query);
-        console.log('Parámetros:', params);
-        const [rows] = await connection.execute(query, params);
-        connection.release();
-        console.log(`Historial enviado para group_id ${groupId}: ${rows.length} registros`);
-        res.json(rows);
-    } catch (error) {
-        console.error('Error al obtener historial:', error.message);
-        res.status(500).json({ error: 'Error del servidor', details: error.message });
+    // Construir consulta como string (sin prepared statements temporalmente)
+    let query = `SELECT * FROM sensor_readings WHERE timestamp >= '${startISO}' AND timestamp <= '${endISO}'`;
+    
+    if (group_id) {
+      query += ` AND group_id = ${parseInt(group_id, 10)}`;
     }
+    
+    query += ` ORDER BY timestamp DESC LIMIT ${parseInt(limit, 10)}`;
+
+    console.log('Ejecutando consulta directa:', {
+      query,
+      originalDates: { startDate, endDate },
+      convertedDates: { startISO, endISO }
+    });
+
+    // Usar conexión explícita
+    const connection = await pool.getConnection();
+    const [rows] = await connection.query(query); // query en lugar de execute
+    connection.release();
+
+    console.log(`Datos históricos obtenidos: ${rows.length} registros`);
+    
+    // Log de algunos datos para verificar
+    if (rows.length > 0) {
+      console.log('Primeros 2 registros:', rows.slice(0, 2));
+    }
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al obtener historial:', error.message, error.stack);
+    res.status(500).json({ error: 'Error al obtener historial: ' + error.message });
+  }
 });
 
 // Endpoint para obtener alertas (protegido por JWT)
