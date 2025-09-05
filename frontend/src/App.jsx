@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './components/Login';
-import Register from './components/Register';
 import Dashboard from './components/Dashboard';
+import DateSearch from './components/DateSearch';
+import AddUser from './components/AddUser';
+import ViewUsers from './components/ViewUsers';
 import { Box, CssBaseline } from '@mui/material';
-import { ThemeProvider, createTheme, alpha } from '@mui/material/styles';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
   palette: {
@@ -73,18 +75,13 @@ const theme = createTheme({
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [showRegister, setShowRegister] = useState(false);
 
   if (!token) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <Box sx={{ minHeight: '100vh' }}>
-          {showRegister ? (
-            <Register setToken={setToken} setShowRegister={setShowRegister} />
-          ) : (
-            <Login setToken={setToken} setShowRegister={setShowRegister} />
-          )}
+          <Login setToken={setToken} />
         </Box>
       </ThemeProvider>
     );
@@ -97,6 +94,9 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard setToken={setToken} />} />
           <Route path="/store" element={<Dashboard setToken={setToken} />} />
+          <Route path="/date-search" element={<DateSearch setToken={setToken} />} />
+          <Route path="/add-user" element={<AddUser setToken={setToken} />} />
+          <Route path="/view-users" element={<ViewUsers setToken={setToken} />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Box,
@@ -44,10 +44,9 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import StoreIcon from '@mui/icons-material/Store';
 import dayjs from 'dayjs';
 
-// Registrar componentes de Chart.js
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
-// Tema profesional
+// Tema
 const theme = createTheme({
   palette: {
     primary: { main: '#2E7D32', contrastText: '#ffffff' },
@@ -68,76 +67,9 @@ const theme = createTheme({
     body1: { fontSize: '0.875rem' },
     button: { textTransform: 'none', fontWeight: 500 },
   },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-          transition: 'transform 0.2s, box-shadow 0.2s',
-          '&:hover': {
-            transform: 'translateY(-2px)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
-          },
-          border: '1px solid rgba(0,0,0,0.05)',
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          borderRadius: '10px',
-          border: '1px solid rgba(0,0,0,0.05)',
-        },
-      },
-    },
-    MuiDivider: {
-      styleOverrides: {
-        root: {
-          backgroundColor: 'rgba(0,0,0,0.08)',
-          margin: '12px 0',
-        },
-      },
-    },
-    MuiTable: {
-      styleOverrides: {
-        root: {
-          borderCollapse: 'separate',
-          borderSpacing: '0 8px',
-        },
-      },
-    },
-    MuiTableCell: {
-      styleOverrides: {
-        root: {
-          borderBottom: 'none',
-          padding: '12px',
-          '&:first-of-type': {
-            borderTopLeftRadius: '8px',
-            borderBottomLeftRadius: '8px',
-          },
-          '&:last-of-type': {
-            borderTopRightRadius: '8px',
-            borderBottomRightRadius: '8px',
-          },
-        },
-        head: {
-          backgroundColor: alpha('#2E7D32', 0.08),
-          color: '#263238',
-          fontWeight: 600,
-        },
-        body: {
-          backgroundColor: '#ffffff',
-          '&:hover': {
-            backgroundColor: alpha('#f5f5f5', 0.5),
-          },
-        },
-      },
-    },
-  },
 });
 
-// Componente StatusCard
+// StatusCard component
 const StatusCard = ({ icon, title, value, subtitle, color, unit }) => (
   <Card sx={{ height: '100%' }}>
     <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -175,9 +107,9 @@ const StatusCard = ({ icon, title, value, subtitle, color, unit }) => (
 
 export default function Dashboard({ setToken }) {
   const [user, setUser] = useState(null);
-  const [iotData, setIotData] = useState(null);
-  const [historyData, setHistoryData] = useState([]);
-  const [historicalData, setHistoricalData] = useState([]);
+  const [currentData, setCurrentData] = useState(null); // Dato actual (tiempo real)
+  const [realtimeHistory, setRealtimeHistory] = useState([]); // Histórico de tiempo real (últimos 20 datos)
+  const [historicalData, setHistoricalData] = useState([]); // Datos históricos de la base
   const [historicalChartData, setHistoricalChartData] = useState({ labels: [], datasets: [] });
   const [sliderValue, setSliderValue] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -186,159 +118,260 @@ export default function Dashboard({ setToken }) {
   const [selectedView, setSelectedView] = useState('dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [alerts, setAlerts] = useState([]);
+  
+  const handleDrawerToggle = () => {
+    setDrawerOpen(!drawerOpen);
+  };
+  
+  const [debugInfo, setDebugInfo] = useState({
+    lastFetch: null,
+    fetchCount: 0,
+    apiResponses: {},
+    connectionStatus: 'connecting'
+  });
+  
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const audioRef = useRef(new Audio('https://www.soundjay.com/buttons/beep-01a.mp3'));
-
-  // Calcular estadísticas
-  const calculateStats = (data) => {
-    if (!data || data.length === 0) return {};
-    const temperatures = data.map(d => d.temperature).filter(t => t !== null && t !== undefined);
-    const humidities = data.map(d => d.humidity).filter(h => h !== null && h !== undefined);
-    if (temperatures.length === 0 || humidities.length === 0) return {};
-
-    const tempMean = temperatures.reduce((sum, val) => sum + val, 0) / temperatures.length;
-    const humMean = humidities.reduce((sum, val) => sum + val, 0) / humidities.length;
-    const tempVariance = temperatures.reduce((sum, val) => sum + Math.pow(val - tempMean, 2), 0) / temperatures.length;
-    const humVariance = humidities.reduce((sum, val) => sum + Math.pow(val - humMean, 2), 0) / humidities.length;
-    const tempStdDev = Math.sqrt(tempVariance);
-    const humStdDev = Math.sqrt(humVariance);
-    const tempSorted = [...temperatures].sort((a, b) => a - b);
-    const humSorted = [...humidities].sort((a, b) => a - b);
-    const tempMid = Math.floor(tempSorted.length / 2);
-    const humMid = Math.floor(humSorted.length / 2);
-    const tempMedian = tempSorted.length % 2 === 0 ? (tempSorted[tempMid - 1] + tempSorted[tempMid]) / 2 : tempSorted[tempMid];
-    const humMedian = humSorted.length % 2 === 0 ? (humSorted[humMid - 1] + humSorted[humMid]) / 2 : humSorted[humMid];
-    const tempRange = Math.max(...temperatures) - Math.min(...temperatures);
-    const humRange = Math.max(...humidities) - Math.min(...humidities);
-
-    return {
-      tempMean, tempStdDev, tempMedian, tempRange, tempMin: Math.min(...temperatures), tempMax: Math.max(...temperatures),
-      humMean, humStdDev, humMedian, humRange, humMin: Math.min(...humidities), humMax: Math.max(...humidities),
-    };
+  const serverUrl = 'http://192.168.0.237:5000';
+  
+  const logDebug = (type, message, data = null) => {
+    const timestamp = new Date().toISOString();
+    console.group(`🔍 [${timestamp}] ${type.toUpperCase()}`);
+    console.log(`📝 ${message}`);
+    if (data) {
+      console.log('📊 Datos:', data);
+    }
+    console.groupEnd();
+    
+    setDebugInfo(prev => ({
+      ...prev,
+      lastFetch: timestamp,
+      fetchCount: prev.fetchCount + 1
+    }));
   };
 
-  // Obtener datos
-  const fetchData = async () => {
+  const fetchCurrentData = async () => {
     try {
-      setRefreshing(true);
       const token = localStorage.getItem('token');
-      if (!token) {
-        setError('No se encontró el token de autenticación. Por favor, inicia sesión nuevamente.');
-        setLoading(false);
-        return;
-      }
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      const serverUrl = 'http://192.168.18.31:5000';
+      if (!token) throw new Error('No token found');
 
-      const [userResponse, iotResponse, historyResponse, alertsResponse] = await Promise.all([
-        axios.get(`${serverUrl}/user`, config).catch(err => {
-          console.error('Error al obtener usuario:', err.response?.status, err.response?.data || err.message);
-          return { data: null };
-        }),
-        axios.get(`${serverUrl}/iot-data/latest`, config).catch(err => {
-          console.error('Error al obtener datos IoT:', err.response?.status, err.response?.data || err.message);
-          return { data: null };
-        }),
-        axios.get(`${serverUrl}/iot-data/history`, {
-          ...config,
-          params: { startDate: dayjs().subtract(1, 'day').toISOString(), endDate: dayjs().toISOString() },
-        }).catch(err => {
-          console.error('Error al obtener historial:', err.response?.status, err.response?.data || err.message);
-          return { data: [] };
-        }),
-        axios.get(`${serverUrl}/iot-alerts`, config).catch(err => {
-          console.error('Error al obtener alertas:', err.response?.status, err.response?.data || err.message);
-          return { data: { alerts: [], data: null } };
-        }),
-      ]);
+      const config = { 
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      };
 
-      if (userResponse.data && typeof userResponse.data === 'object' && userResponse.data.username) {
-        setUser(userResponse.data);
+      logDebug('realtime', 'Obteniendo dato actual...');
+      
+      const response = await axios.get(`${serverUrl}/iot-data/latest`, config);
+      const data = response.data;
+      
+      logDebug('realtime', 'Dato actual obtenido', data);
+      
+      setCurrentData(data);
+      
+      // Agregar al histórico de tiempo real (mantener solo últimos 20)
+      setRealtimeHistory(prev => {
+        const updated = [...prev, data];
+        return updated.slice(-20); // Mantener solo últimos 20 datos
+      });
+
+      setDebugInfo(prev => ({
+        ...prev,
+        apiResponses: { ...prev.apiResponses, current: 'success' },
+        connectionStatus: 'connected'
+      }));
+      
+      return data;
+    } catch (error) {
+      logDebug('error', 'Error obteniendo dato actual', error);
+      
+      if (error.response?.status === 404) {
+        logDebug('info', 'No hay datos recientes (404)');
+        setCurrentData(null);
+        setDebugInfo(prev => ({
+          ...prev,
+          apiResponses: { ...prev.apiResponses, current: 'no-data' },
+          connectionStatus: 'no-data'
+        }));
       } else {
-        setUser({ username: 'Usuario' });
-        setError('No se pudieron cargar los datos del usuario. Verifica tu sesión.');
+        setDebugInfo(prev => ({
+          ...prev,
+          apiResponses: { ...prev.apiResponses, current: 'error' },
+          connectionStatus: 'error'
+        }));
       }
+      return null;
+    }
+  };
 
-      if (iotResponse.data && typeof iotResponse.data === 'object') {
-        setIotData(iotResponse.data);
-      } else {
-        setIotData(null);
-      }
+  const fetchHistoricalData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No token found');
 
-      const newData = historyResponse.data || [];
-      console.log('Datos históricos recibidos:', newData);
-      setHistoryData(prev => [...prev, ...newData].slice(-30));
-      setHistoricalData(newData);
+      const config = { 
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000,
+        params: { 
+          startDate: dayjs().subtract(1, 'day').toISOString(), 
+          endDate: dayjs().toISOString(),
+          limit: 100
+        }
+      };
 
-      // Filtrar alertas duplicadas consecutivas y limitar a 3
-      const newAlerts = alertsResponse.data.alerts || [];
+      logDebug('history', 'Obteniendo datos históricos...');
+      
+      const response = await axios.get(`${serverUrl}/iot-data/history`, config);
+      const data = response.data || [];
+      
+      logDebug('history', `Datos históricos obtenidos: ${data.length} registros`, data.slice(0, 3));
+      
+      setHistoricalData(data);
+      setDebugInfo(prev => ({
+        ...prev,
+        apiResponses: { ...prev.apiResponses, history: 'success' }
+      }));
+      
+      return data;
+    } catch (error) {
+      logDebug('error', 'Error obteniendo datos históricos', error);
+      setHistoricalData([]);
+      setDebugInfo(prev => ({
+        ...prev,
+        apiResponses: { ...prev.apiResponses, history: 'error' }
+      }));
+      return [];
+    }
+  };
+
+  const fetchAlerts = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No token found');
+
+      const config = { 
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      };
+
+      const response = await axios.get(`${serverUrl}/iot-alerts`, config);
+      const newAlerts = response.data.alerts || [];
+      
+      logDebug('alerts', `Alertas obtenidas: ${newAlerts.length}`, newAlerts);
+      
       const filteredAlerts = [];
       let lastMessage = '';
       for (const alert of newAlerts.slice(0, 3)) {
-        if (alert.message !== lastMessage) {
-          filteredAlerts.push({ ...alert, id: `${alert.timestamp}-${alert.message}`, expiry: Date.now() + 30000 });
+        if (alert.message && alert.message.trim() !== '' && alert.message !== lastMessage) {
+          filteredAlerts.push({ 
+            ...alert, 
+            id: `${alert.timestamp}-${alert.message}`, 
+            expiry: Date.now() + 30000 
+          });
           lastMessage = alert.message;
         }
       }
       setAlerts(filteredAlerts);
-
-      if (filteredAlerts.length > 0) {
-        audioRef.current.play().catch(err => console.error('Error al reproducir sonido:', err));
-      }
+      
+      setDebugInfo(prev => ({
+        ...prev,
+        apiResponses: { ...prev.apiResponses, alerts: 'success' }
+      }));
     } catch (error) {
-      console.error('Error general al cargar datos:', error.response?.status, error.response?.data || error.message);
-      setError('Error al cargar los datos. Verifica la conexión con el servidor.');
+      logDebug('error', 'Error obteniendo alertas', error);
+      setAlerts([]);
+      setDebugInfo(prev => ({
+        ...prev,
+        apiResponses: { ...prev.apiResponses, alerts: 'error' }
+      }));
+    }
+  };
+
+  const fetchUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No token found');
+
+      const config = { 
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      };
+
+      const response = await axios.get(`${serverUrl}/user`, config);
+      const userData = response.data;
+      
+      logDebug('user', 'Usuario obtenido', userData);
+      setUser(userData);
+      
+      setDebugInfo(prev => ({
+        ...prev,
+        apiResponses: { ...prev.apiResponses, user: 'success' }
+      }));
+    } catch (error) {
+      logDebug('error', 'Error obteniendo usuario', error);
+      setUser({ username: 'Usuario', role: 'collaborator', group_id: 1 });
+      setDebugInfo(prev => ({
+        ...prev,
+        apiResponses: { ...prev.apiResponses, user: 'error' }
+      }));
+    }
+  };
+
+  const fetchData = async () => {
+    logDebug('fetch', 'Iniciando obtención completa de datos...');
+    
+    try {
+      setRefreshing(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        logDebug('error', 'No se encontró token de autenticación');
+        setError('No se encontró el token de autenticación. Por favor, inicia sesión nuevamente.');
+        setLoading(false);
+        return;
+      }
+
+      // Ejecutar todas las peticiones
+      await Promise.allSettled([
+        fetchUser(),
+        fetchCurrentData(),
+        fetchHistoricalData(),
+        fetchAlerts()
+      ]);
+
+      setError(null);
+      logDebug('success', '✅ Obtención de datos completada exitosamente');
+
+    } catch (error) {
+      logDebug('fatal', '❌ Error fatal en fetchData', error);
+      setError(`Error al cargar los datos: ${error.message}`);
     } finally {
       setRefreshing(false);
       setLoading(false);
     }
   };
 
-  // Buscar datos históricos (para selector de fechas)
-  const fetchHistoricalData = async (startDate, endDate) => {
-    try {
-      setRefreshing(true);
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setError('No se encontró el token de autenticación. Por favor, inicia sesión nuevamente.');
-        setRefreshing(false);
-        return;
-      }
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      const serverUrl = 'http://192.168.18.31:5000';
-
-      const response = await axios.get(`${serverUrl}/iot-data/history`, {
-        ...config,
-        params: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
-      });
-      console.log('Respuesta de fetchHistoricalData:', response.data);
-      setHistoricalData(response.data || []);
-      setSliderValue(0);
-    } catch (error) {
-      console.error('Error al obtener datos históricos:', error.response?.data || error.message);
-      setError('No se pudieron cargar los datos históricos. Verifica el rango de fechas o la conexión.');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  // Expirar alertas automáticamente
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setAlerts(prevAlerts => prevAlerts.filter(alert => alert.expiry > Date.now()));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Actualizar historicalChartData
+  // Effect para preparar datos del gráfico histórico
   useEffect(() => {
     if (historicalData.length > 0) {
+      logDebug('chart', `Actualizando gráfico histórico con ${historicalData.length} puntos`);
+      
       const chartData = {
-        labels: historicalData.map((data) => new Date(data.timestamp).toLocaleString()),
+        labels: historicalData.slice(-30).map((data) => new Date(data.timestamp).toLocaleString()),
         datasets: [
           {
             label: 'Temperatura (°C)',
-            data: historicalData.map((data) => data.temperature || 0),
+            data: historicalData.slice(-30).map((data) => parseFloat(data.temperature) || 0),
             borderColor: '#0288D1',
             backgroundColor: alpha('#0288D1', 0.05),
             tension: 0.3,
@@ -346,7 +379,7 @@ export default function Dashboard({ setToken }) {
           },
           {
             label: 'Humedad (%)',
-            data: historicalData.map((data) => data.humidity || 0),
+            data: historicalData.slice(-30).map((data) => parseFloat(data.humidity) || 0),
             borderColor: '#2E7D32',
             backgroundColor: alpha('#2E7D32', 0.05),
             tension: 0.3,
@@ -356,48 +389,65 @@ export default function Dashboard({ setToken }) {
       };
       setHistoricalChartData(chartData);
     } else {
+      logDebug('chart', 'No hay datos históricos para el gráfico');
       setHistoricalChartData({ labels: [], datasets: [] });
     }
-    console.log('historicalData:', historicalData);
-    console.log('historicalChartData:', historicalChartData);
   }, [historicalData]);
 
+  // Effect para cargar datos iniciales
   useEffect(() => {
+    logDebug('mount', 'Dashboard montado, iniciando carga de datos...');
     fetchData();
-    const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
+    
+    // Intervalo para actualizar solo el dato actual cada 30 segundos
+    const realtimeInterval = setInterval(() => {
+      logDebug('interval', 'Actualizando dato actual automáticamente...');
+      fetchCurrentData();
+    }, 30000);
+    
+    // Intervalo para actualizar datos históricos cada 5 minutos
+    const historyInterval = setInterval(() => {
+      logDebug('interval', 'Actualizando datos históricos...');
+      fetchHistoricalData();
+    }, 300000);
+    
+    return () => {
+      logDebug('unmount', 'Dashboard desmontado, limpiando intervalos');
+      clearInterval(realtimeInterval);
+      clearInterval(historyInterval);
+    };
   }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    logDebug('manual', 'Actualización manual iniciada');
     setRefreshing(true);
-    fetchData();
+    await fetchData();
   };
 
   const handleLogout = () => {
+    logDebug('auth', 'Cerrando sesión...');
     localStorage.removeItem('token');
     setToken(null);
   };
 
   const handleSelectView = (view) => {
+    logDebug('navigation', `Cambiando vista a: ${view}`);
     setSelectedView(view);
     if (isMobile) setDrawerOpen(false);
   };
 
-  const handleDrawerToggle = () => {
-    setDrawerOpen(!drawerOpen);
-  };
-
   const handleDismissAlerts = () => {
+    logDebug('alerts', 'Descartando todas las alertas');
     setAlerts([]);
   };
 
-  const stats = calculateStats(historyData);
-  const chartData = {
-    labels: historyData.map((_, index) => `-${(historyData.length - index - 1) * 60}s`),
+  // Datos para el gráfico de tiempo real
+  const realtimeChartData = {
+    labels: realtimeHistory.map((_, index) => `-${(realtimeHistory.length - index - 1) * 30}s`),
     datasets: [
       {
         label: 'Temperatura (°C)',
-        data: historyData.map((data) => data.temperature || 0),
+        data: realtimeHistory.map((data) => parseFloat(data.temperature) || 0),
         borderColor: '#0288D1',
         backgroundColor: alpha('#0288D1', 0.05),
         tension: 0.3,
@@ -405,7 +455,7 @@ export default function Dashboard({ setToken }) {
       },
       {
         label: 'Humedad (%)',
-        data: historyData.map((data) => data.humidity || 0),
+        data: realtimeHistory.map((data) => parseFloat(data.humidity) || 0),
         borderColor: '#2E7D32',
         backgroundColor: alpha('#2E7D32', 0.05),
         tension: 0.3,
@@ -424,9 +474,7 @@ export default function Dashboard({ setToken }) {
           usePointStyle: true,
           padding: 20,
           boxWidth: 12,
-          font: {
-            size: 14,
-          },
+          font: { size: 14 },
         },
       },
       tooltip: {
@@ -447,39 +495,16 @@ export default function Dashboard({ setToken }) {
     scales: {
       x: {
         grid: { display: false },
-        ticks: {
-          maxRotation: 45,
-          minRotation: 45,
-          maxTicksLimit: 10,
-          font: {
-            size: 12,
-          },
-        },
-        title: {
-          display: true,
-          text: 'Fecha y Hora',
-          color: '#263238',
-          font: {
-            size: 14,
-          },
-        },
+        ticks: { maxRotation: 45, minRotation: 45, maxTicksLimit: 10, font: { size: 12 } },
+        title: { display: true, text: 'Tiempo', color: '#263238', font: { size: 14 } },
       },
       y: {
         grid: { color: 'rgba(0, 0, 0, 0.03)' },
-        ticks: {
+        ticks: { 
           callback: (value) => `${value}${value <= 100 ? '%' : '°C'}`,
-          font: {
-            size: 12,
-          },
+          font: { size: 12 }
         },
-        title: {
-          display: true,
-          text: 'Temperatura (°C) / Humedad (%)',
-          color: '#263238',
-          font: {
-            size: 14,
-          },
-        },
+        title: { display: true, text: 'Valores', color: '#263238', font: { size: 14 } },
       },
     },
     elements: {
@@ -491,9 +516,20 @@ export default function Dashboard({ setToken }) {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: 'background.default' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: 'background.default', p: 3 }}>
         <CircularProgress size={60} thickness={4} />
-        {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+        <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Cargando Dashboard...</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Estado: {debugInfo.connectionStatus}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Intentos: {debugInfo.fetchCount} | Servidor: {serverUrl}
+        </Typography>
+        {error && (
+          <Alert severity="error" sx={{ mt: 2, maxWidth: 400 }}>
+            {error}
+          </Alert>
+        )}
       </Box>
     );
   }
@@ -506,20 +542,47 @@ export default function Dashboard({ setToken }) {
           onClose={handleDrawerToggle}
           onSelectView={handleSelectView}
           selectedView={selectedView}
+          userRole={user?.role || 'collaborator'}
         />
         <Box sx={{ flexGrow: 1, p: isMobile ? 2 : 3 }}>
           <Header
             username={user?.username || 'Usuario'}
+            role={user?.role || 'collaborator'}
             alerts={alerts}
             onRefresh={handleRefresh}
             refreshing={refreshing}
             onLogout={handleLogout}
             isMobile={isMobile}
           />
+          {process.env.NODE_ENV === 'development' && (
+            <Card sx={{ mb: 2, bgcolor: alpha('#000', 0.02) }}>
+              <CardContent sx={{ py: 1 }}>
+                <Typography variant="caption" sx={{ display: 'block' }}>
+                  🔍 Debug: Conexión {debugInfo.connectionStatus} | 
+                  Actualizaciones: {debugInfo.fetchCount} | 
+                  APIs: {Object.entries(debugInfo.apiResponses).map(([key, value]) => `${key}=${value}`).join(', ')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Última actualización: {debugInfo.lastFetch || 'nunca'} | 
+                  Datos tiempo real: {realtimeHistory.length} | 
+                  Históricos: {historicalData.length}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
           {error && (
             <Fade in={!!error}>
-              <Alert severity="error" sx={{ mb: 2, mx: isMobile ? 0 : 2 }}>
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                <AlertTitle>Error de Conexión</AlertTitle>
                 {error}
+                <Button 
+                  size="small" 
+                  onClick={handleRefresh} 
+                  sx={{ mt: 1 }}
+                  disabled={refreshing}
+                >
+                  Reintentar
+                </Button>
               </Alert>
             </Fade>
           )}
@@ -544,7 +607,7 @@ export default function Dashboard({ setToken }) {
                       borderRadius: 1,
                     }}
                   >
-                    <AlertTitle>Alerta</AlertTitle>
+                    <AlertTitle>Alerta IoT</AlertTitle>
                     {alert.message} - {new Date(alert.timestamp).toLocaleString()}
                   </Alert>
                 </Fade>
@@ -563,163 +626,244 @@ export default function Dashboard({ setToken }) {
           {selectedView === 'dashboard' && (
             <>
               <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-                Este panel monitorea la temperatura y humedad del minimercado para garantizar la calidad de los abarrotes. Usa los gráficos y datos para analizar tendencias y recibir alertas.
+                Monitoreo en tiempo real de temperatura y humedad del minimercado. 
+                {currentData ? (
+                  <span style={{ color: theme.palette.success.main }}> ✅ Sistema conectado</span>
+                ) : (
+                  <span style={{ color: theme.palette.error.main }}> ⚠️ Sin datos recientes</span>
+                )}
+                {user?.role === 'admin' && (
+                  <span style={{ color: theme.palette.info.main, marginLeft: '8px' }}>
+                    (Datos en tiempo real no se almacenan)
+                  </span>
+                )}
               </Typography>
               <Grid container spacing={3} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6} md={3}>
                   <StatusCard
                     icon={<WaterDropIcon />}
-                    title="Humedad Ambiental"
-                    value={iotData?.humidity ? Number(iotData.humidity).toFixed(1) : '--'}
-                    subtitle="Nivel actual"
+                    title="Humedad Actual"
+                    value={currentData?.humidity ? Number(currentData.humidity).toFixed(1) : '--'}
+                    subtitle={currentData ? 'Datos actualizados' : 'Sin datos'}
                     unit="%"
-                    color={theme.palette.primary.main}
+                    color={currentData?.humidity > 70 ? theme.palette.warning.main : theme.palette.primary.main}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <StatusCard
                     icon={<TimelineIcon />}
-                    title="Temperatura Ambiental"
-                    value={iotData?.temperature ? Number(iotData.temperature).toFixed(1) : '--'}
-                    subtitle="Nivel actual"
+                    title="Temperatura Actual"
+                    value={currentData?.temperature ? Number(currentData.temperature).toFixed(1) : '--'}
+                    subtitle={currentData ? 'Datos actualizados' : 'Sin datos'}
                     unit="°C"
-                    color={theme.palette.secondary.main}
+                    color={currentData?.temperature > 70 ? theme.palette.error.main : theme.palette.secondary.main}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <StatusCard
                     icon={<AccessTimeIcon />}
                     title="Última Actualización"
-                    value={iotData?.timestamp ? new Date(iotData.timestamp).toLocaleTimeString() : '--:--'}
-                    subtitle={iotData?.timestamp ? new Date(iotData.timestamp).toLocaleDateString() : 'N/A'}
+                    value={currentData?.timestamp ? new Date(currentData.timestamp).toLocaleTimeString() : '--:--'}
+                    subtitle={currentData?.timestamp ? new Date(currentData.timestamp).toLocaleDateString() : 'Sin conexión'}
                     color={theme.palette.info.main}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <StatusCard
                     icon={<WarningIcon />}
-                    title="Alertas"
-                    value={alerts.length}
-                    subtitle={alerts.length > 0 ? 'Activas' : 'Sin alertas'}
-                    color={alerts.length > 0 ? theme.palette.warning.main : theme.palette.success.main}
+                    title="Estado Sistema"
+                    value={debugInfo.connectionStatus === 'connected' ? 'Activo' : 'Error'}
+                    subtitle={`${alerts.length} alerta${alerts.length !== 1 ? 's' : ''}`}
+                    color={debugInfo.connectionStatus === 'connected' ? theme.palette.success.main : theme.palette.error.main}
                   />
                 </Grid>
               </Grid>
-              <Card sx={{ mb: 3, minHeight: isMobile ? '500px' : '700px' }}>
+              <Card sx={{ mb: 3 }}>
                 <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5" color="text.primary">
-                      <TimelineIcon color="primary" sx={{ verticalAlign: 'middle', mr: 1 }} />
-                      Datos Históricos
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {historicalData.length} registros
-                    </Typography>
-                  </Box>
+                  <Typography variant="h5" color="text.primary" sx={{ mb: 2 }}>
+                    <TimelineIcon color="primary" sx={{ verticalAlign: 'middle', mr: 1 }} />
+                    Monitoreo en Tiempo Real
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                    Últimas {realtimeHistory.length} lecturas | Actualización cada 30s
+                  </Typography>
                   <Divider sx={{ my: 2 }} />
-                  <Grid container spacing={3} sx={{ flexDirection: 'column' }}>
-                    <Grid item xs={12}>
-                      <TableContainer component={Paper} elevation={0}>
-                        <Table size="small">
+                  <Box sx={{ height: isMobile ? '300px' : '400px', position: 'relative' }}>
+                    {realtimeHistory.length > 0 ? (
+                      <Line data={realtimeChartData} options={chartOptions} />
+                    ) : (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                        <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+                          No hay datos en tiempo real
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, textAlign: 'center' }}>
+                          Verifica que el ESP32 esté enviando datos al servidor
+                        </Typography>
+                        <Button variant="outlined" onClick={handleRefresh} disabled={refreshing}>
+                          {refreshing ? 'Actualizando...' : 'Reintentar'}
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                  {currentData && (
+                    <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                      <Typography variant="subtitle1" gutterBottom>Última lectura:</Typography>
+                      <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                        <Typography variant="body1">
+                          <strong>Temperatura:</strong> {currentData.temperature}°C
+                        </Typography>
+                        <Typography variant="body1">
+                          <strong>Humedad:</strong> {currentData.humidity}%
+                        </Typography>
+                        <Typography variant="body1">
+                          <strong>Hora:</strong> {new Date(currentData.timestamp).toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent>
+                  <Typography variant="h5" color="text.primary" sx={{ mb: 2 }}>
+                    Datos Históricos
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                    {historicalData.length} registros encontrados
+                  </Typography>
+                  <Divider sx={{ my: 2 }} />
+                  {historicalData.length > 0 ? (
+                    <>
+                      <TableContainer component={Paper} elevation={0} sx={{ maxHeight: 400, overflow: 'auto' }}>
+                        <Table stickyHeader>
                           <TableHead>
                             <TableRow>
                               <TableCell>Fecha y Hora</TableCell>
-                              <TableCell>Temperatura (°C)</TableCell>
-                              <TableCell>Humedad (%)</TableCell>
+                              <TableCell align="right">Temperatura (°C)</TableCell>
+                              <TableCell align="right">Humedad (%)</TableCell>
+                              <TableCell align="center">Usuario</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {historicalData.map((row, index) => (
+                            {historicalData.slice(0, 20).map((row, index) => (
                               <TableRow
-                                key={row.id}
-                                sx={{ backgroundColor: index === sliderValue ? alpha('#2E7D32', 0.1) : 'inherit' }}
+                                key={row.id || index}
+                                sx={{ 
+                                  backgroundColor: index === sliderValue ? alpha('#2E7D32', 0.1) : 'inherit',
+                                  '&:hover': { backgroundColor: alpha('#f5f5f5', 0.8) }
+                                }}
                               >
-                                <TableCell>{new Date(row.timestamp).toLocaleString()}</TableCell>
-                                <TableCell>{row.temperature ? Number(row.temperature).toFixed(1) : 'N/A'}</TableCell>
-                                <TableCell>{row.humidity ? Number(row.humidity).toFixed(1) : 'N/A'}</TableCell>
+                                <TableCell>
+                                  {new Date(row.timestamp).toLocaleString()}
+                                </TableCell>
+                                <TableCell align="right" sx={{ 
+                                  color: row.temperature > 70 ? theme.palette.error.main : 'inherit',
+                                  fontWeight: row.temperature > 70 ? 'bold' : 'normal'
+                                }}>
+                                  {row.temperature ? Number(row.temperature).toFixed(1) : 'N/A'}
+                                </TableCell>
+                                <TableCell align="right" sx={{
+                                  color: row.humidity > 70 ? theme.palette.warning.main : 'inherit',
+                                  fontWeight: row.humidity > 70 ? 'bold' : 'normal'
+                                }}>
+                                  {row.humidity ? Number(row.humidity).toFixed(1) : 'N/A'}
+                                </TableCell>
+                                <TableCell align="center">
+                                  <Typography variant="caption" color="text.secondary">
+                                    {row.user_id || 'N/A'}
+                                  </Typography>
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
                         </Table>
                       </TableContainer>
-                      <Box sx={{ mt: 2, px: 2 }}>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          Navegar registros
-                        </Typography>
-                        <Slider
-                          value={sliderValue}
-                          onChange={(e, newValue) => setSliderValue(newValue)}
-                          min={0}
-                          max={historicalData.length - 1}
-                          step={1}
-                          marks
-                          valueLabelDisplay="auto"
-                          valueLabelFormat={(value) => `Registro ${value + 1}`}
-                          sx={{ maxWidth: '100%' }}
-                        />
-                      </Box>
-                    </Grid>
-                    <Grid item xs={12}>
-                      <Box
-                        sx={{
-                          height: isMobile ? '400px' : '600px',
-                          width: '100%',
-                          position: 'relative',
-                          border: '1px solid #e0e0e0',
-                        }}
-                      >
-                        {historicalChartData.labels?.length > 0 ? (
-                          <Line data={historicalChartData} options={chartOptions} />
-                        ) : (
-                          <Typography color="text.secondary" align="center" sx={{ mt: 4 }}>
-                            No hay datos históricos para mostrar
+                      {historicalData.length > 1 && (
+                        <Box sx={{ mt: 3, px: 2 }}>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Navegar por {historicalData.length} registros históricos
                           </Typography>
-                        )}
+                          <Slider
+                            value={sliderValue}
+                            onChange={(e, newValue) => setSliderValue(newValue)}
+                            min={0}
+                            max={Math.max(0, historicalData.length - 1)}
+                            step={1}
+                            marks={historicalData.length <= 10}
+                            valueLabelDisplay="auto"
+                            valueLabelFormat={(value) => `Registro ${value + 1}`}
+                            sx={{ maxWidth: '100%' }}
+                          />
+                        </Box>
+                      )}
+                      <Box sx={{ mt: 3 }}>
+                        <Typography variant="h6" color="text.primary" sx={{ mb: 2 }}>
+                          Gráfico de Tendencias Históricas
+                        </Typography>
+                        <Box sx={{ height: isMobile ? '300px' : '400px', position: 'relative' }}>
+                          {historicalChartData.labels?.length > 0 ? (
+                            <Line data={historicalChartData} options={chartOptions} />
+                          ) : (
+                            <Typography color="text.secondary" align="center" sx={{ mt: 4 }}>
+                              No hay suficientes datos históricos para mostrar el gráfico
+                            </Typography>
+                          )}
+                        </Box>
                       </Box>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5" color="text.primary">
-                      <TimelineIcon color="primary" sx={{ verticalAlign: 'middle', mr: 1 }} />
-                      Humedad y Temperatura en Tiempo Real
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {historyData.length} registros
-                    </Typography>
-                  </Box>
-                  <Divider sx={{ my: 2 }} />
-                  <Box sx={{ height: isMobile ? '400px' : '600px', position: 'relative', border: '1px solid #e0e0e0' }}>
-                    {chartData.labels?.length > 0 ? (
-                      <Line data={chartData} options={chartOptions} />
-                    ) : (
-                      <Typography color="text.secondary" align="center" sx={{ mt: 4 }}>
-                        No hay datos en tiempo real para mostrar
+                    </>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+                      <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+                        No hay datos históricos disponibles
                       </Typography>
-                    )}
-                  </Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
+                        Los datos históricos aparecerán aquí una vez que el sistema comience a recopilar información
+                      </Typography>
+                      <Button 
+                        variant="outlined" 
+                        onClick={handleRefresh} 
+                        disabled={refreshing}
+                        startIcon={refreshing ? <CircularProgress size={16} /> : null}
+                      >
+                        {refreshing ? 'Buscando datos...' : 'Actualizar'}
+                      </Button>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </>
           )}
           {selectedView === 'store' && (
-            <Box sx={{ p: 3 }}>
+            <Box sx={{ p: isMobile ? 1 : 3 }}>
               <Typography variant="h4" color="text.primary" sx={{ mb: 2, fontWeight: 700 }}>
                 <StoreIcon color="primary" sx={{ verticalAlign: 'middle', mr: 1 }} />
                 Vista de Tienda Inteligente
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                Monitoreo en tiempo real de las condiciones ambientales de la tienda mediante sensores IoT.
+                Monitoreo visual en tiempo real de las condiciones ambientales del minimercado.
+                Estado de conexión: 
+                <Typography 
+                  component="span" 
+                  sx={{ 
+                    ml: 1,
+                    color: debugInfo.connectionStatus === 'connected' ? theme.palette.success.main : theme.palette.error.main,
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {debugInfo.connectionStatus === 'connected' ? 'CONECTADO' : 'DESCONECTADO'}
+                </Typography>
+                {user?.role === 'admin' && (
+                  <Typography component="span" sx={{ ml: 1, color: theme.palette.info.main }}>
+                    (Datos en tiempo real no se almacenan)
+                  </Typography>
+                )}
               </Typography>
-              <Card>
+              <Card sx={{ mb: 3 }}>
                 <CardContent>
                   <Box
                     sx={{
                       width: '100%',
-                      height: 400,
+                      height: isMobile ? 300 : 400,
                       backgroundColor: '#f8fafc',
                       borderRadius: 2,
                       border: '2px solid #e0e0e0',
@@ -742,97 +886,95 @@ export default function Dashboard({ setToken }) {
                         boxSizing: 'border-box',
                       }}
                     />
-                    <Box
-                      sx={{
+                    <Box sx={{
+                      position: 'absolute',
+                      top: 50,
+                      left: 50,
+                      width: 120,
+                      height: 200,
+                      backgroundColor: '#8d6e63',
+                      borderRadius: '4px',
+                      boxShadow: '2px 2px 8px rgba(0,0,0,0.2)',
+                      '&::before': {
+                        content: '""',
                         position: 'absolute',
-                        top: 50,
-                        left: 50,
-                        width: 120,
-                        height: 250,
-                        backgroundColor: '#8d6e63',
-                        borderRadius: '4px',
-                        boxShadow: '2px 2px 8px rgba(0,0,0,0.2)',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: '20%',
-                          backgroundColor: '#5d4037',
-                          borderTopLeftRadius: '4px',
-                          borderTopRightRadius: '4px',
-                        },
-                      }}
-                    />
-                    <Box
-                      sx={{
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: '20%',
+                        backgroundColor: '#5d4037',
+                        borderTopLeftRadius: '4px',
+                        borderTopRightRadius: '4px',
+                      },
+                    }} />
+                    <Box sx={{
+                      position: 'absolute',
+                      top: 50,
+                      right: 50,
+                      width: 120,
+                      height: 200,
+                      backgroundColor: '#8d6e63',
+                      borderRadius: '4px',
+                      boxShadow: '2px 2px 8px rgba(0,0,0,0.2)',
+                      '&::before': {
+                        content: '""',
                         position: 'absolute',
-                        top: 50,
-                        right: 50,
-                        width: 120,
-                        height: 250,
-                        backgroundColor: '#8d6e63',
-                        borderRadius: '4px',
-                        boxShadow: '2px 2px 8px rgba(0,0,0,0.2)',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: '20%',
-                          backgroundColor: '#5d4037',
-                          borderTopLeftRadius: '4px',
-                          borderTopRightRadius: '4px',
-                        },
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        bottom: 50,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        width: 200,
-                        height: 60,
-                        backgroundColor: '#78909c',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '2px 2px 8px rgba(0,0,0,0.2)',
-                      }}
-                    >
-                      <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: '20%',
+                        backgroundColor: '#5d4037',
+                        borderTopLeftRadius: '4px',
+                        borderTopRightRadius: '4px',
+                      },
+                    }} />
+                    <Box sx={{
+                      position: 'absolute',
+                      bottom: 50,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: 160,
+                      height: 50,
+                      backgroundColor: '#78909c',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '2px 2px 8px rgba(0,0,0,0.2)',
+                    }}>
+                      <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold', fontSize: '10px' }}>
                         CAJA REGISTRADORA
                       </Typography>
                     </Box>
                     <Box
                       sx={{
                         position: 'absolute',
-                        top: 100,
-                        left: 200,
-                        width: 40,
-                        height: 40,
-                        backgroundColor: iotData?.temperature > 70 ? '#D32F2F' : '#ff6d00',
+                        top: 80,
+                        left: '30%',
+                        width: 50,
+                        height: 50,
+                        backgroundColor: currentData?.temperature > 70 ? '#D32F2F' : 
+                                       currentData?.temperature ? '#ff6d00' : '#9e9e9e',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: 'white',
                         fontWeight: 'bold',
-                        fontSize: '12px',
-                        boxShadow: '0 0 15px rgba(255, 109, 0, 0.5)',
-                        animation: iotData?.temperature > 70 ? 'pulse 1s infinite' : 'none',
-                        border: '2px solid #ff9800',
+                        fontSize: '20px',
+                        boxShadow: currentData?.temperature > 70 ? 
+                                  '0 0 20px rgba(211, 47, 47, 0.6)' : 
+                                  '0 0 15px rgba(255, 109, 0, 0.5)',
+                        animation: currentData?.temperature > 70 ? 'pulse 1s infinite' : 'none',
+                        border: '3px solid #fff',
                         cursor: 'pointer',
+                        transition: 'all 0.3s ease',
                         '&:hover': {
                           transform: 'scale(1.1)',
-                          boxShadow: '0 0 20px rgba(255, 109, 0, 0.8)',
+                          boxShadow: '0 0 25px rgba(255, 109, 0, 0.8)',
                         },
                       }}
-                      title={`Temperatura: ${iotData?.temperature ? Number(iotData.temperature).toFixed(1) : '--'}°C`}
+                      title={`Temperatura: ${currentData?.temperature ? Number(currentData.temperature).toFixed(1) : '--'}°C | ${currentData?.timestamp ? 'Actualizado: ' + new Date(currentData.timestamp).toLocaleString() : 'Sin datos'}`}
                     >
                       🌡️
                     </Box>
@@ -840,100 +982,96 @@ export default function Dashboard({ setToken }) {
                       sx={{
                         position: 'absolute',
                         top: 180,
-                        right: 150,
-                        width: 40,
-                        height: 40,
-                        backgroundColor: iotData?.humidity > 70 ? '#D32F2F' : '#0288d1',
+                        right: '25%',
+                        width: 50,
+                        height: 50,
+                        backgroundColor: currentData?.humidity > 70 ? '#D32F2F' : 
+                                       currentData?.humidity ? '#0288d1' : '#9e9e9e',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: 'white',
                         fontWeight: 'bold',
-                        fontSize: '12px',
-                        boxShadow: '0 0 15px rgba(2, 136, 209, 0.5)',
-                        animation: iotData?.humidity > 70 ? 'pulse 1s infinite' : 'none',
-                        border: '2px solid #03a9f4',
+                        fontSize: '20px',
+                        boxShadow: currentData?.humidity > 70 ? 
+                                  '0 0 20px rgba(211, 47, 47, 0.6)' : 
+                                  '0 0 15px rgba(2, 136, 209, 0.5)',
+                        animation: currentData?.humidity > 70 ? 'pulse 1s infinite' : 'none',
+                        border: '3px solid #fff',
                         cursor: 'pointer',
+                        transition: 'all 0.3s ease',
                         '&:hover': {
                           transform: 'scale(1.1)',
-                          boxShadow: '0 0 20px rgba(2, 136, 209, 0.8)',
+                          boxShadow: '0 0 25px rgba(2, 136, 209, 0.8)',
                         },
                       }}
-                      title={`Humedad: ${iotData?.humidity ? Number(iotData.humidity).toFixed(1) : '--'}%`}
+                      title={`Humedad: ${currentData?.humidity ? Number(currentData.humidity).toFixed(1) : '--'}% | ${currentData?.timestamp ? 'Actualizado: ' + new Date(currentData.timestamp).toLocaleString() : 'Sin datos'}`}
                     >
                       💧
                     </Box>
-                    <Box
-                      sx={{
+                    <Box sx={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: '40%',
+                      width: 80,
+                      height: 30,
+                      backgroundColor: '#795548',
+                      borderTopLeftRadius: '8px',
+                      borderTopRightRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      '&::after': {
+                        content: '""',
                         position: 'absolute',
-                        bottom: 0,
-                        left: '30%',
-                        width: 80,
-                        height: 40,
-                        backgroundColor: '#795548',
-                        borderTopLeftRadius: '8px',
-                        borderTopRightRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        '&::after': {
-                          content: '""',
-                          position: 'absolute',
-                          right: 10,
-                          width: 8,
-                          height: 8,
-                          backgroundColor: '#ffd600',
-                          borderRadius: '50%',
-                        },
-                      }}
-                    >
-                      <Typography variant="caption" sx={{ color: 'white', fontSize: '10px' }}>
+                        right: 8,
+                        width: 6,
+                        height: 6,
+                        backgroundColor: '#ffd600',
+                        borderRadius: '50%',
+                      },
+                    }}>
+                      <Typography variant="caption" sx={{ color: 'white', fontSize: '8px', fontWeight: 'bold' }}>
                         ENTRADA
                       </Typography>
                     </Box>
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 30,
-                        left: '25%',
-                        width: 60,
-                        height: 40,
-                        backgroundColor: '#e3f2fd',
-                        border: '2px solid #90caf9',
-                        borderRadius: '4px',
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 30,
-                        right: '25%',
-                        width: 60,
-                        height: 40,
-                        backgroundColor: '#e3f2fd',
-                        border: '2px solid #90caf9',
-                        borderRadius: '4px',
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        padding: 1,
-                        borderRadius: '4px',
-                        border: '1px solid #e0e0e0',
-                      }}
-                    >
-                      <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                        🟠 Sensor Temperatura
+                    <Box sx={{
+                      position: 'absolute',
+                      top: 10,
+                      right: 10,
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      padding: 1.5,
+                      borderRadius: '8px',
+                      border: '1px solid #e0e0e0',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    }}>
+                      <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
+                        SENSORES IoT
                       </Typography>
-                      <br />
-                      <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                        🔵 Sensor Humedad
+                      <Typography variant="caption" sx={{ display: 'block', color: '#ff6d00' }}>
+                        🌡️ Temperatura
                       </Typography>
+                      <Typography variant="caption" sx={{ display: 'block', color: '#0288d1' }}>
+                        💧 Humedad
+                      </Typography>
+                      <Typography variant="caption" sx={{ display: 'block', color: '#9e9e9e', mt: 0.5 }}>
+                        ⚪ Sin conexión
+                      </Typography>
+                    </Box>
+                    <Box sx={{
+                      position: 'absolute',
+                      bottom: 10,
+                      left: 10,
+                      backgroundColor: debugInfo.connectionStatus === 'connected' ? 
+                                     'rgba(76, 175, 80, 0.9)' : 'rgba(244, 67, 54, 0.9)',
+                      color: 'white',
+                      padding: '4px 8px',
+                      borderRadius: '12px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                    }}>
+                      {debugInfo.connectionStatus === 'connected' ? '● ONLINE' : '● OFFLINE'}
                     </Box>
                   </Box>
                   <Grid container spacing={3}>
@@ -941,59 +1079,75 @@ export default function Dashboard({ setToken }) {
                       <StatusCard
                         icon={<WaterDropIcon />}
                         title="Humedad Tienda"
-                        value={iotData?.humidity ? Number(iotData.humidity).toFixed(1) : '--'}
-                        subtitle="Nivel actual"
+                        value={currentData?.humidity ? Number(currentData.humidity).toFixed(1) : '--'}
+                        subtitle={currentData?.humidity > 70 ? 'ALERTA: Muy alta' : currentData ? 'Normal' : 'Sin datos'}
                         unit="%"
-                        color={theme.palette.primary.main}
+                        color={currentData?.humidity > 70 ? theme.palette.error.main : theme.palette.primary.main}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                       <StatusCard
                         icon={<TimelineIcon />}
                         title="Temperatura Tienda"
-                        value={iotData?.temperature ? Number(iotData.temperature).toFixed(1) : '--'}
-                        subtitle="Nivel actual"
+                        value={currentData?.temperature ? Number(currentData.temperature).toFixed(1) : '--'}
+                        subtitle={currentData?.temperature > 70 ? 'ALERTA: Muy alta' : currentData ? 'Normal' : 'Sin datos'}
                         unit="°C"
-                        color={theme.palette.secondary.main}
+                        color={currentData?.temperature > 70 ? theme.palette.error.main : theme.palette.secondary.main}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                       <StatusCard
                         icon={<AccessTimeIcon />}
-                        title="Última Actualización"
-                        value={iotData?.timestamp ? new Date(iotData.timestamp).toLocaleTimeString() : '--:--'}
-                        subtitle={iotData?.timestamp ? new Date(iotData.timestamp).toLocaleDateString() : 'N/A'}
+                        title="Última Lectura"
+                        value={currentData?.timestamp ? new Date(currentData.timestamp).toLocaleTimeString() : '--:--'}
+                        subtitle={currentData?.timestamp ? `${Math.round((Date.now() - new Date(currentData.timestamp).getTime()) / 1000)}s atrás` : 'Sin conexión'}
                         color={theme.palette.info.main}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                       <StatusCard
                         icon={<WarningIcon />}
-                        title="Estado General"
-                        value={alerts.length > 0 ? 'Alerta' : 'Óptimo'}
-                        subtitle={alerts.length > 0 ? 'Revisar alertas' : 'Sistemas funcionando'}
+                        title="Estado Sistema"
+                        value={alerts.length}
+                        subtitle={alerts.length > 0 ? 'Alertas activas' : 'Sistema normal'}
                         color={alerts.length > 0 ? theme.palette.warning.main : theme.palette.success.main}
                       />
                     </Grid>
                   </Grid>
-                  <Box sx={{ mt: 3, p: 2, backgroundColor: alpha(theme.palette.info.main, 0.1), borderRadius: 2 }}>
+                  <Box sx={{ mt: 3, p: 2, backgroundColor: alpha(theme.palette.info.main, 0.08), borderRadius: 2 }}>
                     <Typography variant="h6" color="text.primary" sx={{ mb: 1 }}>
-                      📊 Información del Sistema IoT
+                      🏪 Sistema de Monitoreo IoT - Minimercado
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      • Sensores distribuidos estratégicamente en la tienda
-                      <br />
-                      • Monitoreo continuo 24/7
-                      <br />
-                      • Alertas automáticas en tiempo real
-                      <br />
-                      • Histórico de datos accesible
-                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          • Sensores distribuidos estratégicamente<br />
+                          • Monitoreo continuo 24/7<br />
+                          • Alertas automáticas en tiempo real<br />
+                          • Histórico completo de mediciones
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Estado actual:</strong><br />
+                          • Conexión: {debugInfo.connectionStatus}<br />
+                          • Actualizaciones: {debugInfo.fetchCount}<br />
+                          • Última sync: {debugInfo.lastFetch ? new Date(debugInfo.lastFetch).toLocaleTimeString() : 'nunca'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
                   </Box>
                 </CardContent>
               </Card>
             </Box>
           )}
+          <style>{`
+            @keyframes pulse {
+              0% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.05); opacity: 0.8; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+          `}</style>
         </Box>
       </Box>
     </ThemeProvider>

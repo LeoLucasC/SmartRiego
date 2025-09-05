@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = '.pio\build\az-delivery-devkit-v4\firmware.bin'  # Ruta al archivo bin generado
+elf = '.pio\build\az-delivery-devkit-v4\firmware.elf'       # Opcional, acelera la simulación

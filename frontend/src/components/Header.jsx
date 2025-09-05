@@ -15,13 +15,15 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import WarningIcon from '@mui/icons-material/Warning';
 import PersonIcon from '@mui/icons-material/Person';
 
-const Header = ({ username, alerts, onRefresh, refreshing, onLogout, isMobile }) => {
+
+const Header = ({ username, role, alerts, onRefresh, refreshing, onLogout, isMobile }) => {
   const theme = useTheme();
 
   // Depuración en consola
   React.useEffect(() => {
     console.log('Header - Username recibido:', username);
-  }, [username]);
+    console.log('Header - Role recibido:', role);
+  }, [username, role]);
 
   return (
     <Box
@@ -109,27 +111,27 @@ const Header = ({ username, alerts, onRefresh, refreshing, onLogout, isMobile })
           >
             Bienvenido,
           </Typography>
-          <Chip
-            icon={<PersonIcon />}
-            label={username || 'Usuario'} // Fallback a "Usuario" si no hay username
-            color="primary"
-            variant="filled"
-            size="medium"
-            sx={{ 
-              fontWeight: 600,
-              backgroundColor: 'primary.main',
-              color: 'primary.contrastText',
-              '&:hover': {
-                backgroundColor: 'primary.dark',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 8px rgba(255, 235, 59, 0.3)'
-              },
-              transition: 'all 0.3s ease',
-              '& .MuiChip-icon': {
-                color: 'primary.contrastText'
-              }
-            }}
-          />
+        <Chip
+        icon={<PersonIcon />}
+        label={role === 'admin' ? `Admin ${username || 'Usuario'}` : username || 'Usuario'}
+        color="primary"
+        variant="filled"
+        size="medium"
+        sx={{ 
+          fontWeight: 600,
+          backgroundColor: 'primary.main',
+          color: 'primary.contrastText',
+          '&:hover': {
+            backgroundColor: 'primary.dark',
+            transform: 'translateY(-2px)',
+            boxShadow: '0 4px 8px rgba(255, 235, 59, 0.3)'
+          },
+          transition: 'all 0.3s ease',
+          '& .MuiChip-icon': {
+            color: 'primary.contrastText'
+          }
+        }}
+      />  
         </Box>
         
         {/* Alertas */}

@@ -18,12 +18,15 @@ import { useTheme, alpha } from '@mui/material/styles';
 import { Link, useLocation } from 'react-router-dom';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import StoreIcon from '@mui/icons-material/Store';
+import PeopleIcon from '@mui/icons-material/People';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import MenuIcon from '@mui/icons-material/Menu';
 import logoSmart from '../resource/logoreal.png';
 
-const Sidebar = ({ open, onClose, onSelectView }) => {
+const Sidebar = ({ open, onClose, onSelectView, userRole }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const location = useLocation();
@@ -32,6 +35,11 @@ const Sidebar = ({ open, onClose, onSelectView }) => {
   const menuItems = [
     { text: 'Panel de Control', icon: <DashboardIcon />, value: 'dashboard', path: '/' },
     { text: 'Tienda', icon: <StoreIcon />, value: 'store', path: '/store' },
+    { text: 'Búsqueda por Fecha', icon: <CalendarTodayIcon />, value: 'dateSearch', path: '/date-search' },
+    { text: 'Ver Colaboradores', icon: <PeopleIcon />, value: 'viewUsers', path: '/view-users' },
+    ...(userRole === 'admin' ? [
+      { text: 'Agregar Usuario', icon: <PersonAddIcon />, value: 'addUser', path: '/add-user' }
+    ] : []),
   ];
 
   const toggleCollapse = () => {
@@ -92,7 +100,6 @@ const Sidebar = ({ open, onClose, onSelectView }) => {
           textAlign: 'center',
           gap: collapsed ? 1 : 2
         }}>
-          {/* Logo grande */}
           <Box
             component="img"
             src={logoSmart}
@@ -107,7 +114,6 @@ const Sidebar = ({ open, onClose, onSelectView }) => {
 
           {!collapsed ? (
             <>
-              {/* Nombre de la empresa */}
               <Typography 
                 variant="h5" 
                 sx={{ 
