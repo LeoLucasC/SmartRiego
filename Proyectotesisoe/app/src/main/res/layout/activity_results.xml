@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#FAFAFA">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="24dp">
+
+        <Button
+            android:id="@+id/backButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/volver"
+            android:text="←"
+            android:textSize="18sp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Resultados del Escaneo"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:gravity="center" />
+
+
+
+    </LinearLayout>
+
+    <!-- Tarjeta Texto Reconocido -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:background="@drawable/card_background"
+        android:padding="16dp"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📝 TEXTO RECONOCIDO"
+            android:textSize="16sp"
+            android:textColor="#666666"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:scrollbars="vertical">
+
+            <TextView
+                android:id="@+id/recognizedText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Cargando texto reconocido..."
+                android:textSize="16sp"
+                android:textColor="#333333"
+                android:lineSpacingExtra="4dp"
+                android:padding="8dp"
+                android:background="#F8F9FA" />
+
+        </ScrollView>
+
+        <Button
+            android:id="@+id/copyTextButton"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_marginTop="12dp"
+            android:text="📋 Copiar Texto"
+            android:textAllCaps="false"
+            android:textColor="#2196F3"
+            android:textSize="14sp"
+            android:textStyle="normal"
+            android:background="@drawable/outline_button" />
+
+    </LinearLayout>
+
+    <!-- Tarjeta Traducción -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:background="@drawable/card_background"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🌍 TRADUCCIÓN"
+            android:textSize="16sp"
+            android:textColor="#666666"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:scrollbars="vertical">
+
+            <TextView
+                android:id="@+id/translatedText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Cargando traducción..."
+                android:textSize="16sp"
+                android:textColor="#333333"
+                android:lineSpacingExtra="4dp"
+                android:padding="8dp"
+                android:background="#F8F9FA" />
+
+        </ScrollView>
+
+        <Button
+            android:id="@+id/copyTranslationButton"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_marginTop="12dp"
+            android:text="📋 Copiar Traducción"
+            android:textColor="#2196F3"
+            android:textAllCaps="false"
+            android:background="@drawable/outline_button" />
+
+    </LinearLayout>
+
+</LinearLayout>

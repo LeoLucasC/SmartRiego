@@ -2,4 +2,19 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="primary_color">#D32F2F</color>
+    <color name="primary_dark">#B71C1C</color>
+    <color name="primary_light">#FF6659</color>
+    <color name="primary_text">#212121</color>
+    <color name="secondary_text">#757575</color>
+    <color name="surface_variant">#E0E0E0</color>
+
+    <!-- Agregados para Material Design 3 (M3) - valores baseline para light mode -->
+    <color name="surface_container_low">#F8F9FA</color>
+    <color name="outline">#79747E</color>
+
+    <!-- Opcional: Más colores M3 para consistencia si los usas en otros lugares -->
+    <color name="surface">#FFFDFE</color>
+    <color name="on_surface">#1C1B1F</color>
+    <color name="primary">#6750A4</color> <!-- Puedes cambiar a tu primary_color si prefieres -->
 </resources>

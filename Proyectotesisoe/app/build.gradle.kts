@@ -39,8 +39,12 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+
+    // ML Kit Text Recognition v2: Base (Latín/Inglés) + Chino + Coreano
     implementation(libs.mlkit.text.recognition)
     implementation(libs.mlkit.text.recognition.chinese)
+    implementation(libs.mlkit.text.recognition.korean)
+
     implementation(libs.okhttp)
     implementation(libs.camera.core)
     implementation(libs.camera.camera2)

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Marco con línea punteada -->
+    <item>
+        <shape android:shape="rectangle">
+            <stroke
+                android:width="2dp"
+                android:color="#664CAF50"
+                android:dashWidth="10dp"
+                android:dashGap="5dp" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+
+    <!-- Esquina superior izquierda -->
+    <item
+        android:top="0dp"
+        android:left="0dp"
+        android:right="220dp"
+        android:bottom="220dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="4dp" android:color="#4CAF50" />
+            <corners
+                android:topLeftRadius="12dp"
+                android:topRightRadius="0dp"
+                android:bottomLeftRadius="0dp"
+                android:bottomRightRadius="0dp" />
+        </shape>
+    </item>
+
+    <!-- Esquina superior derecha -->
+    <item
+        android:top="0dp"
+        android:left="220dp"
+        android:right="0dp"
+        android:bottom="220dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="4dp" android:color="#4CAF50" />
+            <corners
+                android:topLeftRadius="0dp"
+                android:topRightRadius="12dp"
+                android:bottomLeftRadius="0dp"
+                android:bottomRightRadius="0dp" />
+        </shape>
+    </item>
+
+    <!-- Esquina inferior izquierda -->
+    <item
+        android:top="220dp"
+        android:left="0dp"
+        android:right="220dp"
+        android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="4dp" android:color="#4CAF50" />
+            <corners
+                android:topLeftRadius="0dp"
+                android:topRightRadius="0dp"
+                android:bottomLeftRadius="12dp"
+                android:bottomRightRadius="0dp" />
+        </shape>
+    </item>
+
+    <!-- Esquina inferior derecha -->
+    <item
+        android:top="220dp"
+        android:left="220dp"
+        android:right="0dp"
+        android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="4dp" android:color="#4CAF50" />
+            <corners
+                android:topLeftRadius="0dp"
+                android:topRightRadius="0dp"
+                android:bottomLeftRadius="0dp"
+                android:bottomRightRadius="12dp" />
+        </shape>
+    </item>
+</layer-list>
