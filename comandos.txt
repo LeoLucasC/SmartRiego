@@ -1,0 +1,16 @@
+comando para ver mi estrucutura de mi base de datos de "mongodb"
+
+
+mongosh "mongodb+srv://admin:Lucas2201@db-iot.zeh1ca3.mongodb.net/iot-db?retryWrites=true&w=majority"
+
+
+show dbs        # Muestra todas las bases de datos
+use iot-db      # Entra a tu base de datos (por tu ejemplo)
+show collections  # Muestra las colecciones (tablas)
+
+
+db.nombreColeccion.find().pretty()
+
+
+hivemq.webclient.1760056096814
+CF.f,Q82gJ7l1P*Iu$nt

@@ -10,6 +10,7 @@ import {
   Alert,
   Fade,
   CircularProgress,
+  MenuItem,
   useMediaQuery
 } from '@mui/material';
 import { ThemeProvider, createTheme, alpha } from '@mui/material/styles';
@@ -122,6 +123,7 @@ export default function AddUser({ setToken }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [groupId, setGroupId] = useState(1);
   const [user, setUser] = useState(null);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
@@ -140,7 +142,7 @@ export default function AddUser({ setToken }) {
           setOpen(true);
           return;
         }
-        const response = await axios.get('http://192.168.18.28:5000/user', {
+        const response = await axios.get('http://192.168.18.106:5000/user', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(response.data);
@@ -180,8 +182,13 @@ export default function AddUser({ setToken }) {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        'http://192.168.18.28:5000/add-user',
-        { username, password },
+        'http://192.168.0.106:5000/add-user',
+        { 
+          username, 
+          password,
+          role: 'collaborator',  // Por defecto siempre collaborator
+          group_id: groupId      // Nuevo: enviar el grupo seleccionado
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setMessage(response.data.message);
@@ -190,6 +197,7 @@ export default function AddUser({ setToken }) {
       setUsername('');
       setPassword('');
       setConfirmPassword('');
+      setGroupId(1);
     } catch (error) {
       console.error('Error al agregar usuario:', error.response?.data || error.message);
       setMessage(error.response?.data.error || 'Error al agregar el usuario.');
@@ -200,9 +208,20 @@ export default function AddUser({ setToken }) {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await axios.post('http://192.168.0.106:5000/logout', {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(err => console.error('Error en logout:', err));
+      }
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    } finally {
+      localStorage.removeItem('token');
+      setToken(null);
+    }
   };
 
   const handleDrawerToggle = () => {
@@ -527,6 +546,22 @@ export default function AddUser({ setToken }) {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       size="small"
                     />
+
+                    <TextField
+                    fullWidth
+                    select
+                    label="Grupo"
+                    variant="outlined"
+                    margin="normal"
+                    value={groupId}
+                    onChange={(e) => setGroupId(e.target.value)}
+                    size="small"
+                    helperText="Asigna el colaborador a un grupo de trabajo"
+                  >
+                    <MenuItem value={1}>Grupo 1 - Principal</MenuItem>
+                    <MenuItem value={2}>Grupo 2 - Secundario</MenuItem>
+                    <MenuItem value={3}>Grupo 3 - Auxiliar</MenuItem>
+                  </TextField>
                     <Button
                       type="submit"
                       fullWidth

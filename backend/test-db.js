@@ -1,26 +1,17 @@
-const mysql = require('mysql2/promise');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
-async function testConnection() {
-  try {
-  // Configuración CORRECTA
-  const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'db-iot.cx84uymuu7u1.us-east-2.rds.amazonaws.com',
-    user: process.env.DB_USER || 'admin',
-    password: process.env.DB_PASSWORD || 'lucas2201',
-    database: process.env.DB_NAME || 'dbiot', // ← NOMBRE DE LA BD QUE CREASTE
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-  });
+const mongoURI = process.env.MONGO_URI || 
+  'mongodb+srv://admin:Lucas2201@db-iot.zeh1ca3.mongodb.net/iot-db?retryWrites=true&w=majority';
 
-  // You can add a test query here if needed
-  const [rows] = await pool.query('SELECT 1');
-  console.log('Connection successful:', rows);
-  await pool.end();
+async function connectDB() {
+  try {
+    await mongoose.connect(mongoURI);  // Sin las opciones obsoletas
+    console.log('✅ Conexión a MongoDB Atlas exitosa');
   } catch (error) {
-    console.error('Connection failed:', error);
+    console.error('❌ Error al conectar con MongoDB:', error);
+    process.exit(1);
   }
 }
 
-testConnection();
+connectDB();

@@ -129,7 +129,7 @@ export default function DateSearch({ setToken }) {
   const [user, setUser] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const serverUrl = 'http://192.168.0.237:5000';
+  const serverUrl = 'http://192.168.0.106:5000';
 
   const fetchData = async () => {
     try {
@@ -205,10 +205,21 @@ export default function DateSearch({ setToken }) {
     fetchData();
   };
 
-  const handleLogout = () => {
+const handleLogout = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (token) {
+      await axios.post(`${serverUrl}/logout`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(err => console.error('Error en logout:', err));
+    }
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error);
+  } finally {
     localStorage.removeItem('token');
     setToken(null);
-  };
+  }
+};
 
   const handleDrawerToggle = () => {
     setDrawerOpen(!drawerOpen);
@@ -247,6 +258,7 @@ export default function DateSearch({ setToken }) {
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
             Selecciona un rango de fechas para consultar los registros de sensores IoT y alertas.
+            Solo se muestran <strong>datos críticos</strong> registrados durante turnos activos de colaboradores.
           </Typography>
           <Card sx={{ mb: 3 }}>
             <CardContent>
@@ -291,6 +303,15 @@ export default function DateSearch({ setToken }) {
               <Typography variant="h5" color="text.primary" sx={{ mb: 2 }}>
                 Registros de Sensores IoT
               </Typography>
+
+              <Alert severity="info" sx={{ mb: 2 }}>
+              Los registros mostrados corresponden a <strong>picos críticos</strong> detectados automáticamente:
+              <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                <li>Temperatura fuera de rango: 5-28°C</li>
+                <li>Humedad fuera de rango: 30-75%</li>
+                <li>Solo se guardan si había un colaborador activo</li>
+              </ul>
+            </Alert>
               <Divider sx={{ my: 2 }} />
               {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
@@ -299,28 +320,46 @@ export default function DateSearch({ setToken }) {
               ) : (
                 <TableContainer component={Paper} elevation={0}>
                   <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Fecha y Hora</TableCell>
-                        <TableCell>Temperatura (°C)</TableCell>
-                        <TableCell>Humedad (%)</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {iotData.length > 0 ? (
-                        iotData.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell>{new Date(row.timestamp).toLocaleString()}</TableCell>
-                            <TableCell>{row.temperature ? Number(row.temperature).toFixed(1) : 'N/A'}</TableCell>
-                            <TableCell>{row.humidity ? Number(row.humidity).toFixed(1) : 'N/A'}</TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={3} align="center">
-                            No se encontraron registros para el rango de fechas seleccionado.
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Fecha y Hora</TableCell>
+                      <TableCell>Temperatura (°C)</TableCell>
+                      <TableCell>Humedad (%)</TableCell>
+                      <TableCell>Usuario</TableCell>  {/* ⬅️ NUEVA COLUMNA */}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {iotData.length > 0 ? (
+                      iotData.map((row) => (
+                        <TableRow key={row._id || row.id}>
+                          <TableCell>{new Date(row.timestamp).toLocaleString()}</TableCell>
+                          <TableCell 
+                            sx={{ 
+                              color: row.temperature > 28 || row.temperature < 5 ? theme.palette.error.main : 'inherit',
+                              fontWeight: row.temperature > 28 || row.temperature < 5 ? 'bold' : 'normal'
+                            }}
+                          >
+                            {row.temperature ? Number(row.temperature).toFixed(1) : 'N/A'}
+                          </TableCell>
+                          <TableCell
+                            sx={{
+                              color: row.humidity > 75 || row.humidity < 30 ? theme.palette.warning.main : 'inherit',
+                              fontWeight: row.humidity > 75 || row.humidity < 30 ? 'bold' : 'normal'
+                            }}
+                          >
+                            {row.humidity ? Number(row.humidity).toFixed(1) : 'N/A'}
+                          </TableCell>
+                          <TableCell>  {/* ⬅️ NUEVA CELDA */}
+                            {row.user_id ? `Usuario ${row.user_id}` : 'N/A'}
                           </TableCell>
                         </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">  {/* ⬅️ Cambiar colSpan de 3 a 4 */}
+                          No se encontraron registros para el rango de fechas seleccionado.
+                        </TableCell>
+                      </TableRow>
                       )}
                     </TableBody>
                   </Table>
@@ -341,26 +380,39 @@ export default function DateSearch({ setToken }) {
               ) : (
                 <TableContainer component={Paper} elevation={0}>
                   <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Fecha y Hora</TableCell>
-                        <TableCell>Mensaje</TableCell>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Fecha y Hora</TableCell>
+                    <TableCell>Mensaje</TableCell>
+                    <TableCell>Usuario</TableCell>  {/* ⬅️ NUEVA COLUMNA */}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {alerts.length > 0 ? (
+                    alerts.map((alert) => (
+                      <TableRow key={alert._id || `${alert.timestamp}-${alert.message}`}>
+                        <TableCell>{new Date(alert.timestamp).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {alert.message.includes('TEMPERATURA ALTA') && '🔥'}
+                            {alert.message.includes('TEMPERATURA BAJA') && '❄️'}
+                            {alert.message.includes('HUMEDAD ALTA') && '💧'}
+                            {alert.message.includes('HUMEDAD BAJA') && '🏜️'}
+                            {alert.message.includes('ESP32') && '📡'}
+                            {alert.message}
+                          </Box>
+                        </TableCell>
+                        <TableCell>  {/* ⬅️ NUEVA CELDA */}
+                          {alert.user_id ? `Usuario ${alert.user_id}` : 'N/A'}
+                        </TableCell>
                       </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {alerts.length > 0 ? (
-                        alerts.map((alert) => (
-                          <TableRow key={`${alert.timestamp}-${alert.message}`}>
-                            <TableCell>{new Date(alert.timestamp).toLocaleString()}</TableCell>
-                            <TableCell>{alert.message}</TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={2} align="center">
-                            No se encontraron alertas para el rango de fechas seleccionado.
-                          </TableCell>
-                        </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} align="center">  {/* ⬅️ Cambiar colSpan de 2 a 3 */}
+                        No se encontraron alertas para el rango de fechas seleccionado.
+                      </TableCell>
+                    </TableRow>
                       )}
                     </TableBody>
                   </Table>

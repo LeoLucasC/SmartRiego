@@ -128,7 +128,7 @@ export default function Login({ setToken, setShowRegister }) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const { data } = await axios.post('http://192.168.0.237:5000/login', {
+      const { data } = await axios.post('http://192.168.0.106:5000/login', {
         username,
         password,
       });

@@ -136,7 +136,7 @@ export default function Register({ setToken, setShowRegister }) {
       return;
     }
     try {
-      const { data } = await axios.post('http://192.168.0.237:5000/register', {
+      const { data } = await axios.post('http://192.168.0.106:5000/register', {
         username,
         password,
       });

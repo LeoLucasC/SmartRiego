@@ -131,7 +131,7 @@ export default function Dashboard({ setToken }) {
   });
   
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const serverUrl = 'http://192.168.0.237:5000';
+  const serverUrl = 'http://192.168.0.106:5000';
   
   const logDebug = (type, message, data = null) => {
     const timestamp = new Date().toISOString();
@@ -424,11 +424,24 @@ export default function Dashboard({ setToken }) {
     await fetchData();
   };
 
-  const handleLogout = () => {
-    logDebug('auth', 'Cerrando sesión...');
+const handleLogout = async () => {
+  logDebug('auth', 'Cerrando sesión...');
+  
+  try {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Notificar al backend que se cierra sesión
+      await axios.post(`${serverUrl}/logout`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    }
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error);
+  } finally {
     localStorage.removeItem('token');
     setToken(null);
-  };
+  }
+};
 
   const handleSelectView = (view) => {
     logDebug('navigation', `Cambiando vista a: ${view}`);
@@ -626,7 +639,8 @@ export default function Dashboard({ setToken }) {
           {selectedView === 'dashboard' && (
             <>
               <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-                Monitoreo en tiempo real de temperatura y humedad del minimercado. 
+                Monitoreo IoT de temperatura y humedad para productos secos, panes y galletas. 
+                Se registran <strong>automáticamente picos críticos</strong> y alertas durante tu turno activo.
                 {currentData ? (
                   <span style={{ color: theme.palette.success.main }}> ✅ Sistema conectado</span>
                 ) : (
@@ -634,10 +648,18 @@ export default function Dashboard({ setToken }) {
                 )}
                 {user?.role === 'admin' && (
                   <span style={{ color: theme.palette.info.main, marginLeft: '8px' }}>
-                    (Datos en tiempo real no se almacenan)
+                    (Datos en tiempo real no se almacenan - Solo picos críticos)
                   </span>
                 )}
               </Typography>
+
+                  {user?.role === 'collaborator' && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  <AlertTitle>Turno Activo</AlertTitle>
+                  Los datos críticos (temperatura &gt; 28°C, humedad &gt; 75%) se registrarán automáticamente bajo tu usuario.
+                  Las alertas quedarán asociadas a tu turno actual.
+                </Alert>
+              )}
               <Grid container spacing={3} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6} md={3}>
                   <StatusCard
